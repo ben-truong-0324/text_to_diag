@@ -28,9 +28,10 @@ OUTPUT_DIR_OPTIMIZE = f'../graphs'
 # OPT_DRAFT_VER = 0
 
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-DRAFT_VER_A3 = 7
+DRAFT_VER_A3 = 1
 
-CLUSTERING_MAX_K = 10 #data_plots.graph_cluster_count_per hardcoded for CLUSTERING_MAX_K > 40
+CLUSTERING_MIN_K = 10
+CLUSTERING_MAX_K = 20  #data_plots.graph_cluster_count_per hardcoded for CLUSTERING_MAX_K > 40
 
 CLUSTER_ALGORITHMS = [ 'kmeans', 
                         'gmm',
@@ -72,7 +73,7 @@ TRAIN_SIZE = .8
 TEST_SIZE = .2
 HIDDEN_NODES = [16,8]
 NN_MAX_EPOCH = 500
-NN_PATIENCE = 10
+NN_PATIENCE = 3
 
 #DIM REDUCTION
 DIMENSION_REDUCE_METHODS = ["PCA", 

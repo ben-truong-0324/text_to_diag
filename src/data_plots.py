@@ -254,14 +254,35 @@ def graph_cluster_runtime(results, cluster_algo, outpath):
 
 def graph_cluster_silhouette(results, X, cluster_algo, outpath):
     if not os.path.exists(outpath):
-        print("starting")
+        print("Starting silhouette score calculation...")
         n_clusters = list(results.keys())
         silhouette_scores = []
-        for n in n_clusters:
+
+        # Start timing for the entire section
+        section_start_time = time.time()
+
+        # Loop over each cluster and calculate the silhouette score
+        for idx, n in enumerate(n_clusters):
+            print(f"Processing cluster {n} ({idx + 1}/{len(n_clusters)})...")
+
+            # Start timing for this iteration
+            iter_start_time = time.time()
+
+            # Calculate the silhouette score
             labels = results[n]['labels']
             score = silhouette_score(X, labels)  # Assuming X is your feature data
             silhouette_scores.append(score)
-        print("calculated silhoutte")
+
+            # Calculate and print the time taken for this iteration
+            iter_end_time = time.time()
+            iter_duration = iter_end_time - iter_start_time
+            print(f"Cluster {n} processed in {iter_duration:.2f} seconds.")
+
+        # Calculate the total time taken for this section
+        section_end_time = time.time()
+        total_duration = section_end_time - section_start_time
+        print(f"Silhouette scores calculated for all clusters in {total_duration:.2f} seconds.")
+
 
         # Plot Silhouette Score vs. Number of Clusters
         plt.figure(figsize=(10, 6))
@@ -386,14 +407,14 @@ def graph_silhouette_and_runtime(results, X, cluster_algo, outpath):
         plt.close()
 
 def make_cluster_graphs(cluster_results,X,outpath, cluster_algo,tag):
-    graph_cluster_silhouette(cluster_results, X, cluster_algo,
-                f'{outpath}/{tag}_{cluster_algo}_silhouette_by_k_cluster.png')
+    # graph_cluster_silhouette(cluster_results, X, cluster_algo,
+    #             f'{outpath}/{tag}_{cluster_algo}_silhouette_by_k_cluster.png')
     graph_cluster_count_per_for_all(cluster_results, cluster_algo, 
                 f'{outpath}/{tag}_{cluster_algo}_cluster_count_all.png')
     plot_elbow_method(cluster_results, X, cluster_algo, 
                 f'{outpath}/{tag}_{cluster_algo}_elbow.png')
-    graph_silhouette_and_runtime(cluster_results, X, cluster_algo, 
-                f'{outpath}/{tag}_{cluster_algo}_silhouette_vs_runtime.png')
+    # graph_silhouette_and_runtime(cluster_results, X, cluster_algo, 
+    #             f'{outpath}/{tag}_{cluster_algo}_silhouette_vs_runtime.png')
     
 
 def plot_cluster_usefulness_by_nn(nn_results, outpath_accuracy, outpath_f1):

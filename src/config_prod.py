@@ -29,7 +29,8 @@ OUTPUT_DIR_OPTIMIZE = f'../graphs'
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
 DRAFT_VER_A3 = 1
 
-CLUSTERING_MAX_K = 10 #data_plots.graph_cluster_count_per hardcoded for CLUSTERING_MAX_K > 40
+CLUSTERING_MIN_K = 10
+CLUSTERING_MAX_K = 20 
 
 CLUSTER_ALGORITHMS = [ 'kmeans', 'gmm',
                         # 'dbscan',
@@ -41,7 +42,7 @@ CLUSTER_ALGORITHMS = [ 'kmeans', 'gmm',
 RO_ALGORITHMS = ['RHC', 'SA', 'GA', 'MIMIC']
 ALGO_COLORS = {'RHC': 'blue', 'SA': 'red', 'GA': 'green', 'MIMIC': 'black'}
 
-RANDOM_OPTIMIZATION_ITERATION_COUNT = 5
+RANDOM_OPTIMIZATION_ITERATION_COUNT = 10
 MAX_WEIGHT_PCT = .6
 
 PROBLEM_SIZES = list(range(10, 51, 10))
@@ -70,10 +71,11 @@ TRAIN_SIZE = .8
 TEST_SIZE = .2
 HIDDEN_NODES = [16,8]
 NN_MAX_EPOCH = 500
-NN_PATIENCE = 10
+NN_PATIENCE = 3
 
 #DIM REDUCTION
-DIMENSION_REDUCE_METHODS = ["PCA", "ICA", "RCA",
+DIMENSION_REDUCE_METHODS = ["PCA", "ICA",
+#  "RP","RCA",
                 #  "LDA", "RandomForest"
                 ]
 

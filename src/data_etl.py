@@ -248,8 +248,10 @@ def csv_load_helper(x):
 
 
 def y_to_onehot(y):
-    meep = np.eye(19, dtype='uint8')[y - 1].sum(axis=0)
-    return meep
+    # meep = np.eye(19, dtype='uint8')[y - 1].sum(axis=0)
+    # return meep
+    onehot = np.eye(19, dtype='uint8')[y - 1].sum(axis=0)
+    return onehot.astype(np.float32)
 
 def get_data(dataset, do_scaling, do_log_transform):
     if "credit" in dataset:
