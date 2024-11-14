@@ -1,0 +1,20 @@
+name: bd4h  # Name your environment
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  - pytorch
+  - pytorch-cuda=12.4
+  - nose
+  - nltk
+  - gensim
+  - numpy
+  - pandas
+  - matplotlib
+  - seaborn
+  - tabulate
+  # - pyspark
+  - pip  # Ensure pip is available for installing pip packages
+  - pip:
+    - bayesian-optimization
