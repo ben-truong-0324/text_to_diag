@@ -27,12 +27,13 @@ OUTPUT_DIR_OPTIMIZE = f'../graphs'
 # OPT_DRAFT_VER = 0
 
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-DRAFT_VER_A3 = 1
+DRAFT_VER_A3 = 3
 
-CLUSTERING_MIN_K = 10
-CLUSTERING_MAX_K = 20 
+CLUSTERING_MIN_K = 14
+CLUSTERING_MAX_K = 24 
 
-CLUSTER_ALGORITHMS = [ 'kmeans', 'gmm',
+CLUSTER_ALGORITHMS = [ 'kmeans',
+#  'gmm',
                         # 'dbscan',
                         # 'specclus','birch','meanshift','aggclus',
                         ]
