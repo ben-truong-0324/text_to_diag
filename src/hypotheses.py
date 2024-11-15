@@ -5,62 +5,71 @@ import pickle
 import os
 from config import *
 
-def run_dred_improves_purity_score_hypo_test(purity_scores, threshold):
+def run_dred_improves_purity_score_hypo_test(purity_scores, thresholds):
+    """
+    Run hypothesis tests for multiple thresholds and write all results to a single file.
     
-    # Define output paths
-    purity_txt_path = f'{TXT_OUTDIR}/hypo_test_cluster_purity_scores_improve_with_dreduction_{threshold}.txt'
-    pkl_path = f'{DREDUCED_CLUSTER_PKL_OUTDIR}/p_value_results_{threshold}.pkl'
-
-
-    if not os.path.exists(pkl_path):
+    Args:
+        purity_scores: Dictionary of purity scores
+        thresholds: List of threshold values to test
+    """
+    # Define output paths - now just one file for all results
+    purity_txt_path = f'{TXT_OUTDIR}/hypo_test_cluster_purity_scores_improve_with_dreduction_all.txt'
+    pkl_outdir = f'{DREDUCED_CLUSTER_PKL_OUTDIR}'
     
-        # Initialize results dictionary
-        p_value_results = {}
-
-        # Extract unique methods and clustering algorithms
-        methods = sorted(set(key.split('_')[0] for key in purity_scores.keys()))
-        cluster_algos = sorted(set(key.split('_')[2] for key in purity_scores.keys()))
-        dimensions = sorted(set(int(key.split('_')[1][:-1]) for key in purity_scores.keys()))
-
-        # Organize purity scores by method, dimension, and algorithm for easy access
-        data = {algo: {method: {} for method in methods} for algo in cluster_algos}
-        for key, score in purity_scores.items():
-            method, dim, algo = key.split('_')[0], int(key.split('_')[1][:-1]), key.split('_')[2]
-            data[algo][method][dim] = score
-
-        # Open the file to write textual results
-        with open(purity_txt_path, 'w') as file:
-            file.write(f"Hypothesis Test Results: Improvement in Purity Score > {threshold * 100}%\n")
-            file.write("="*80 + "\n\n")
-
+    # Extract unique methods and clustering algorithms
+    methods = sorted(set(key.split('_')[0] for key in purity_scores.keys()))
+    cluster_algos = sorted(set(key.split('_')[2] for key in purity_scores.keys()))
+    dimensions = sorted(set(int(key.split('_')[1][:-1]) for key in purity_scores.keys()))
+    
+    # Organize purity scores by method, dimension, and algorithm for easy access
+    data = {algo: {method: {} for method in methods} for algo in cluster_algos}
+    for key, score in purity_scores.items():
+        method, dim, algo = key.split('_')[0], int(key.split('_')[1][:-1]), key.split('_')[2]
+        data[algo][method][dim] = score
+    
+    # Open the file once for all thresholds
+    with open(purity_txt_path, 'w') as file:
+        file.write("Hypothesis Test Results: Improvement in Purity Score\n")
+        file.write("=" * 80 + "\n\n")
+        
+        # Process each threshold
+        # for threshold in thresholds:
+        for threshold in np.nditer(thresholds):
+            # Initialize results dictionary for this threshold
+            p_value_results = {}
+            
+            file.write(f"\nTesting improvement threshold: {threshold * 100}%\n")
+            file.write("=" * 50 + "\n")
+            
             # Perform tests and collect results
             for algo in cluster_algos:
                 p_value_results[algo] = {}
+                
                 for method in methods:
                     baseline_score = data[algo][method].get(0, None)
                     if baseline_score is None:
                         continue
-
+                        
                     improvements = []
                     for dim in dimensions:
                         if dim == 0 or dim not in data[algo][method]:
                             continue
-
                         observed_score = data[algo][method][dim]
                         if observed_score is not None:
                             improvement = (observed_score - baseline_score) / baseline_score
                             improvements.append(improvement)
-
+                    
                     if not improvements:
                         continue
-
+                        
                     # Perform one-sample t-test against the threshold
                     t_stat, p_value = ttest_1samp(improvements, threshold)
                     if t_stat > 0:
                         p_value /= 2  # One-sided test
                     else:
                         p_value = 1
-
+                        
                     # Store in dictionary and write to file
                     avg_improvement = np.mean(improvements)
                     p_value_results[algo][method] = {
@@ -68,17 +77,20 @@ def run_dred_improves_purity_score_hypo_test(purity_scores, threshold):
                         'p_value': p_value,
                         'significant': p_value < 0.05
                     }
-
+                    
                     # Write results to text file
                     file.write(f"\nClustering Algorithm: {algo}, Dimension Reduction Method: {method}\n")
                     file.write("-" * 50 + "\n")
                     file.write(f"Avg Improvement = {avg_improvement:.2%}\n")
                     file.write(f"P-value = {p_value:.4f}, Significant: {'Yes' if p_value < 0.05 else 'No'}\n")
-
-        # Save results to .pkl file
-        with open(pkl_path, 'wb') as pkl_file:
-            pickle.dump(p_value_results, pkl_file)
-
+            
+            # Save threshold-specific results to .pkl file
+            pkl_path = f'{pkl_outdir}/p_value_results_{threshold}.pkl'
+            with open(pkl_path, 'wb') as pkl_file:
+                pickle.dump(p_value_results, pkl_file)
+            
+            # Add a separator between threshold results
+            file.write("\n" + "=" * 80 + "\n")
 
 
 from scipy.stats import ttest_rel

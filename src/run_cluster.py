@@ -293,7 +293,9 @@ def collect_cluster_results(X, y, cluster_algo, preprocessing_tag = ""):
     """
     
     outpath = f'{CLUSTER_PKL_OUTDIR}/{preprocessing_tag}{cluster_algo}_results.pkl'
+    print(outpath)
     if not os.path.exists(outpath):
+        print("starting")
         results = {}
         for n_clusters in range(CLUSTERING_MIN_K, CLUSTERING_MAX_K):
             print("clustering features for ", n_clusters)
@@ -684,7 +686,10 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
 
                     pickle_path = f'{DREDUCED_PKL_OUTDIR}/{method}_reduced_{k_dimension}_results.pkl'
                     with open(pickle_path, 'rb') as f:
-                        X_reduced, y = pickle.load(f)
+                        try:
+                            X_reduced, y = pickle.load(f)
+                        except:
+                            X_reduced, y, dreduc_metrics = pickle.load(f)
                     if "Random" in method:
                         X_reduced = X_reduced.values
                     X_reduced = torch.FloatTensor(X_reduced).to(device)  
@@ -738,7 +743,7 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
 def implement_dimension_reduction(X,y):
     max_k_dimension = X.shape[1]-1
     for method in DIMENSION_REDUCE_METHODS:
-        for k_dimension in range(int(max_k_dimension/2),max_k_dimension):
+        for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-10),max_k_dimension):
             # Adjust for LDA to not exceed the limit
             if method == "LDA":
                 n_classes = len(np.unique(y))
@@ -754,11 +759,14 @@ def implement_dimension_reduction(X,y):
     cv_losses_outpath = f'{DREDUCED_PKL_OUTDIR}/cv_losses.pkl'
 
     get_dreduced_usefulness_with_nn(X, y, max_k_dimension, all_dreduced_usefulness_with_nn_pickle_path, cv_losses_outpath)
+
     with open(all_dreduced_usefulness_with_nn_pickle_path, 'rb') as f:
         all_dreduced_results = pickle.load(f)
-    # print(all_dreduced_results)
+
     hypotheses.evaluate_dreduced_vs_baseline(all_dreduced_results, "first")
-    print("done")
+
+    print(all_dreduced_results)
+
     data_plots.plot_dreduced_usefulness_by_nn_banded_mean(all_dreduced_results, 
         f'{AGGREGATED_OUTDIR}/DReduced_usefulness_nn.png',)
     data_plots.plot_dreduced_usefulness_by_nn_acc_f1(all_dreduced_results, 
@@ -766,9 +774,7 @@ def implement_dimension_reduction(X,y):
 
 
 def calc_purity_score(X,y,len_unique_labels_multiple,purity_pkl_path,purity_txt_path):
-    print("sup", len_unique_labels_multiple)
     if not os.path.exists(purity_pkl_path) or os.path.exists(purity_pkl_path) :
-        print(purity_pkl_path)
         # Store purity scores for each configuration
         purity_scores = {}
         try:
@@ -794,8 +800,10 @@ def calc_purity_score(X,y,len_unique_labels_multiple,purity_pkl_path,purity_txt_
 
 
         # Iterate over methods, dimensions, and clustering algorithms
+        max_k_dimension = X.shape[1]-1
+
         for method in DIMENSION_REDUCE_METHODS:
-            for k_dimension in range(1, X.shape[1] - 1):
+            for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-10),max_k_dimension):
                 for cluster_algo in CLUSTER_ALGORITHMS:
                     try:
                         # Load the clustering results
@@ -810,13 +818,18 @@ def calc_purity_score(X,y,len_unique_labels_multiple,purity_pkl_path,purity_txt_
                             
                             # Store the purity score
                             purity_scores[f'{method}_{k_dimension}d_{cluster_algo}_{len_unique_labels_multiple}clusters'] = score
+                        else:
+                            print("error")
+                            print(len_unique_labels_multiple)
+                            print(clustered_of_reduced_results)
 
                     except Exception as e:
                         if "LDA" not in method and "Forest" not in method: 
                             print(f"Error processing {method}_{k_dimension}d_{cluster_algo}: {e}")
                             #weird bug with randomforsest_1d
-        print("before dump")
-        print(purity_scores)
+        if not purity_scores:
+            print("before dump, purtiy scores is still empty")
+            print(purity_scores)
 
         with open(purity_pkl_path, 'wb') as f:
             pickle.dump(purity_scores, f)
@@ -842,7 +855,8 @@ def compile_all_pickles_to_one(big_pkl_path, X):
                         # Store clustered results in the compiled dictionary
                         compiled_results[method][k_dimension][cluster_algo] = clustered_results
                     else:
-                        print(f'Pickle file not found: {pickle_path}')
+                        # print(f'Pickle file not found: {pickle_path}')
+                        pass
         # Save the compiled results to a single big pickle file
         with open(big_pkl_path, 'wb') as f:
             pickle.dump(compiled_results, f)
@@ -866,7 +880,7 @@ def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl
                     with open(reduced_features_pickle_path, 'rb') as f:
                         X_reduced, _ = pickle.load(f)  # We already have y, so ignore it from the loaded pickle
                 except: 
-                    print(f'Warning: Reduced features file not found: {reduced_features_pickle_path}')
+                    # print(f'Warning: Reduced features file not found: {reduced_features_pickle_path}')
                     continue
                 
                 if isinstance(X_reduced, np.ndarray):
@@ -982,7 +996,6 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_
         print(f'NN results saved to: {big_nn_output_txt_path}')
 
 def implement_clustering_on_reduced_features(X,y):
-    print("ey")
     all_dreduced_usefulness_with_nn_pickle_path = ALL_DREDUCED_USEFULNESS_WITH_NN_PICKLE_PATH
     for cluster_algo in CLUSTER_ALGORITHMS:
         collect_cluster_results(X, y, cluster_algo, "baseline_") #clustering for c from 2 to CLUSTERING_MAX_K
@@ -992,8 +1005,17 @@ def implement_clustering_on_reduced_features(X,y):
         for k_dimension in range(1,X.shape[1]-1):
             try: #try because some dimension reduction like LDA has different dimension count
                 pickle_path = f'{DREDUCED_PKL_OUTDIR}/{method}_reduced_{k_dimension}_results.pkl'
-                with open(pickle_path, 'rb') as f:
-                    X_reduced, y = pickle.load(f)
+            
+                try:
+                    with open(pickle_path, 'rb') as f:
+                        X_reduced, y = pickle.load(f)
+                except:
+                    try:
+                        with open(pickle_path, 'rb') as f:
+                            X_reduced, y, dreduc_metrics = pickle.load(f)
+                    except:
+                        pass
+                    
                 for cluster_algo in CLUSTER_ALGORITHMS:
                     collect_cluster_results(X_reduced, y, cluster_algo, f'{method}_{k_dimension}d_') #if already ran, will skip
             except: 
@@ -1017,10 +1039,8 @@ def implement_clustering_on_reduced_features(X,y):
     ####### for purity score of c cluster as multiples of target label count
     unique_labels, counts = np.unique(y, return_counts=True)
 
-    multiples_list = [i * len(unique_labels) for i in range(1, CLUSTERING_MAX_K // len(unique_labels) )]
-    #by clustering c
-    print(multiples_list)
-    for len_unique_labels_multiple in multiples_list:
+    
+    for len_unique_labels_multiple in range(CLUSTERING_MIN_K, CLUSTERING_MAX_K):
         purity_pkl_path = f'{CLUSTER_PKL_OUTDIR}/{len_unique_labels_multiple}_cluster_purity_scores.pkl'
         purity_txt_path = f'{TXT_OUTDIR}/{len_unique_labels_multiple}_cluster_purity_scores.txt'
         calc_purity_score(X,y,len_unique_labels_multiple, purity_pkl_path, purity_txt_path)
@@ -1058,7 +1078,7 @@ def implement_clustering_on_reduced_features(X,y):
     data_plots.plot_3d_comparison(clustered_reduced_results, color_map="plasma", 
                                 outpath=f'{AGGREGATED_OUTDIR}')
 
-    data_plots.plot_multi_histograms(clustered_reduced_results, outpath=f'{AGGREGATED_OUTDIR}')
+    # data_plots.plot_multi_histograms(clustered_reduced_results, outpath=f'{AGGREGATED_OUTDIR}')
 
 
     #show that for each PCA, as kmeans k varies the distribution tightness change? more tail end big std big misses vs more consistent small std
