@@ -397,7 +397,7 @@ def graph_raw_data(X_df, Y_df):
     os.makedirs(raw_data_outpath, exist_ok=True)
     # Check if Y_df is multi-label (2D) or single-label (1D)
     if Y_df.ndim == 1:  # Single-label
-        if not os.path.exists(f'{raw_data_outpath}/feature_histogram.png'):
+        if not os.path.exists(f'{raw_data_outpath}/feature_heatmap.png'):
             # Plot class imbalance, feature violin, heatmap, etc.
             data_plots.graph_class_imbalance(Y_df, 
                                              f'{raw_data_outpath}/class_imbalance.png')
@@ -412,7 +412,7 @@ def graph_raw_data(X_df, Y_df):
             data_plots.graph_feature_cdf(X_df, 
                                              f'{raw_data_outpath}/feature_cdf.png')
     else:  # Multi-label
-        if not os.path.exists(f'{raw_data_outpath}/feature_histogram.png'):
+        if not os.path.exists(f'{raw_data_outpath}/feature_heatmap.png'):
             # Handle multi-label plotting differently if necessary
             data_plots.graph_class_imbalance_multilabel(Y_df, 
                                                        f'{raw_data_outpath}/class_imbalance.png')
@@ -421,3 +421,62 @@ def graph_raw_data(X_df, Y_df):
 
 
 
+def inspect_pickle_content(pkl_path):
+    """
+    Inspect contents of a pickle file, showing structure and samples
+    """
+    print(f"\nInspecting pickle file: {pkl_path}")
+    print("=" * 80)
+    
+    with open(pkl_path, 'rb') as f:
+        data = pickle.load(f)
+        
+    print("\n1. Basic Info:")
+    print(f"Type of loaded data: {type(data)}")
+    print(f"Is empty? {not bool(data)}")
+    
+    if isinstance(data, dict):
+        print(f"\n2. Dictionary Structure:")
+        print(f"Number of top-level keys: {len(data)}")
+        print("\nTop-level keys:")
+        for key in list(data.keys())[:5]:  # First 5 keys
+            print(f"- {key} ({type(key)})")
+            
+        # Sample a random key for deeper inspection
+        if data:
+            sample_key = next(iter(data))
+            print(f"\n3. Sample value for key '{sample_key}':")
+            sample_value = data[sample_key]
+            print(f"Type: {type(sample_value)}")
+            
+            # If the value is also a dictionary, show its structure
+            if isinstance(sample_value, dict):
+                print("Nested dictionary structure:")
+                for k, v in list(sample_value.items())[:3]:  # First 3 items
+                    print(f"- {k}: {type(v)}")
+                    if isinstance(v, (dict, list)):
+                        print(f"  Length: {len(v)}")
+                    try:
+                        print(f"  Sample: {str(v)[:100]}...")  # First 100 chars
+                    except:
+                        print("  Sample: [Cannot display sample]")
+            
+            # If it's a list or array, show some info
+            elif isinstance(sample_value, (list, np.ndarray)):
+                print(f"Length: {len(sample_value)}")
+                print("First few elements:")
+                print(sample_value[:3])
+    
+    # If it's not a dictionary, show appropriate info
+    else:
+        if isinstance(data, (list, np.ndarray)):
+            print(f"\nArray/List Info:")
+            print(f"Length: {len(data)}")
+            print("First few elements:")
+            print(data[:3])
+        else:
+            print("\nData sample:")
+            try:
+                print(str(data)[:200])  # First 200 chars
+            except:
+                print("[Cannot display data sample]")

@@ -293,7 +293,6 @@ def collect_cluster_results(X, y, cluster_algo, preprocessing_tag = ""):
     """
     
     outpath = f'{CLUSTER_PKL_OUTDIR}/{preprocessing_tag}{cluster_algo}_results.pkl'
-    print(outpath)
     if not os.path.exists(outpath):
         print("starting")
         results = {}
@@ -765,8 +764,6 @@ def implement_dimension_reduction(X,y):
 
     hypotheses.evaluate_dreduced_vs_baseline(all_dreduced_results, "first")
 
-    print(all_dreduced_results)
-
     data_plots.plot_dreduced_usefulness_by_nn_banded_mean(all_dreduced_results, 
         f'{AGGREGATED_OUTDIR}/DReduced_usefulness_nn.png',)
     data_plots.plot_dreduced_usefulness_by_nn_acc_f1(all_dreduced_results, 
@@ -774,7 +771,7 @@ def implement_dimension_reduction(X,y):
 
 
 def calc_purity_score(X,y,len_unique_labels_multiple,purity_pkl_path,purity_txt_path):
-    if not os.path.exists(purity_pkl_path) or os.path.exists(purity_pkl_path) :
+    if not os.path.exists(purity_pkl_path) or not os.path.exists(purity_txt_path) :
         # Store purity scores for each configuration
         purity_scores = {}
         try:
@@ -839,17 +836,20 @@ def calc_purity_score(X,y,len_unique_labels_multiple,purity_pkl_path,purity_txt_
         print(f"Purity scores saved to {purity_pkl_path} \nand {purity_txt_path}.")
 
 def compile_all_pickles_to_one(big_pkl_path, X):
-    if not os.path.exists(big_pkl_path):
+    print("debug 839")
+    if os.path.exists(big_pkl_path):
         compiled_results = {}
         for method in DIMENSION_REDUCE_METHODS:
             compiled_results[method] = {}
-            for k_dimension in range(1,X.shape[1]-1):
+            max_k_dimension = X.shape[1]-1
+            for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-10),max_k_dimension):
                 compiled_results[method][k_dimension] = {}
                 for cluster_algo in CLUSTER_ALGORITHMS:
                     pickle_path = f'{CLUSTER_PKL_OUTDIR}/{method}_{k_dimension}d_{cluster_algo}_results.pkl'
                     
                     # Check if the pickle file exists and load its data
                     if os.path.exists(pickle_path):
+                        print(f"yes file exists {pickle_path}")
                         with open(pickle_path, 'rb') as f:
                             clustered_results = pickle.load(f)
                         # Store clustered results in the compiled dictionary
@@ -857,6 +857,9 @@ def compile_all_pickles_to_one(big_pkl_path, X):
                     else:
                         # print(f'Pickle file not found: {pickle_path}')
                         pass
+        if not compiled_results:
+            print("before dump, compiled_results is still empty")
+            print(compiled_results)
         # Save the compiled results to a single big pickle file
         with open(big_pkl_path, 'wb') as f:
             pickle.dump(compiled_results, f)
@@ -866,8 +869,11 @@ def compile_all_pickles_to_one(big_pkl_path, X):
 
 
 def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl_path, X_original, ):
+    print("debug 866")
+    data_etl.inspect_pickle_content(compiled_pkl_path)
     # Load compiled pickle file
-    if not os.path.exists(output_pkl_path):
+    if os.path.exists(output_pkl_path):
+        print("degbug lin e 870")
         with open(compiled_pkl_path, 'rb') as f:
             compiled_results = pickle.load(f)
         nn_datasets = {}
@@ -906,7 +912,7 @@ def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl
 
 
 def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_output_pkl_path, big_nn_output_txt_path, cv_losses_outpath):
-    if not os.path.exists(big_nn_output_pkl_path):  
+    if os.path.exists(big_nn_output_pkl_path):  
         nn_clustered_dreduced = {}
     
         best_overall_metric = 0
@@ -915,10 +921,12 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_
         best_overall_method = None
         running_metrics_Xy_srx_space = None
 
-        # try:
-        #     y_labels = torch.LongTensor(y.values).to(device)
-        # except:
-        #     y_labels = torch.LongTensor(y.values).to(device)
+        with open(big_nn_input_pkl_path, 'rb') as f:
+            big_nn_dataset = pickle.load(f)
+
+        print("debug 918")
+        data_etl.inspect_pickle_content(big_nn_input_pkl_path)
+
         try:
             if len(y.shape) > 1 and y.shape[1] > 1:
                 # Multi-label case: use FloatTensor for multi-hot encoded labels
@@ -955,8 +963,8 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_
                 )
         nn_clustered_dreduced["baseline"] = {'mc_results': running_metrics_Xy_srx_space}
 
-        with open(big_nn_input_pkl_path, 'rb') as f:
-            big_nn_dataset = pickle.load(f)
+        
+
         for (dreduc_algo, k_dim, cluster_algo, n_clusters), data in big_nn_dataset.items():
             X_reduced = data['X_clustered_reduced']
             X_reduced = torch.FloatTensor(X_reduced.values).to(device)
@@ -1002,7 +1010,9 @@ def implement_clustering_on_reduced_features(X,y):
 
     # do clustering for reduced feature sets, instead of raw feature sets
     for method in DIMENSION_REDUCE_METHODS:
-        for k_dimension in range(1,X.shape[1]-1):
+
+        max_k_dimension = X.shape[1]-1
+        for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-10),max_k_dimension):
             try: #try because some dimension reduction like LDA has different dimension count
                 pickle_path = f'{DREDUCED_PKL_OUTDIR}/{method}_reduced_{k_dimension}_results.pkl'
             
@@ -1022,20 +1032,7 @@ def implement_clustering_on_reduced_features(X,y):
                 if EXP_DEBUG:
                     print(f"{method} {k_dimension} failed to cluster at implement_clustering_on_reduced_features() ")
     
-    #get some graphs for clustered and reduced, grouped by cluster method and reduction method, and their own k and n values
-    # for method in DIMENSION_REDUCE_METHODS:
-    #     for k_dimension in range(1,X.shape[1]-1):
-    #         for cluster_algo in CLUSTER_ALGORITHMS:
-    #             try:
-    #                 pickle_path = f'{DREDUCED_CLUSTER_PKL_OUTDIR}/{method}_{k_dimension}d_{cluster_algo}_results.pkl'
-    #                 with open(pickle_path, 'rb') as f:
-    #                     clustered_of_reduced_results = pickle.load(f)
-
-    #                 data_plots.make_cluster_of_reduced_graphs(clustered_of_reduced_results, X,
-    #                     NN_CLUSTERED_DREDUCED_PKL_OUTDIR, cluster_algo,
-    #                     f'{method}_{k_dimension}d_')
-    #             except: pass
-    
+   
     ####### for purity score of c cluster as multiples of target label count
     unique_labels, counts = np.unique(y, return_counts=True)
 
@@ -1070,37 +1067,37 @@ def implement_clustering_on_reduced_features(X,y):
 
     get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, 
                     big_nn_output_pkl_path,big_nn_output_txt_path, cv_losses_outpath)
-    #get monte carlo average and stats
+    
+    ###########################
+    data_etl.inspect_pickle_content(big_nn_output_pkl_path)
     with open(big_nn_output_pkl_path, 'rb') as f:
         clustered_reduced_results = pickle.load(f)
 
+
+    ###################
+
     #each PCA, kmeans pair makes a 3d graph
-    data_plots.plot_3d_comparison(clustered_reduced_results, color_map="plasma", 
-                                outpath=f'{AGGREGATED_OUTDIR}')
+    # data_plots.plot_3d_comparison(clustered_reduced_results, color_map="plasma", 
+    #                             outpath=f'{AGGREGATED_OUTDIR}')
 
     # data_plots.plot_multi_histograms(clustered_reduced_results, outpath=f'{AGGREGATED_OUTDIR}')
 
 
-    #show that for each PCA, as kmeans k varies the distribution tightness change? more tail end big std big misses vs more consistent small std
+    big_nn_mc_stats_output_pkl_path = f'{NN_CLUSTERED_DREDUCED_PKL_OUTDIR}/nn_stats_accuracy_f1_runtime_agregated_clustered_reduced_results.pkl'
+    big_nn_mc_stats_output_txt_path = f'{TXT_OUTDIR}/mc_nn_accuracy_f1_runtime_clustered_reduced_results.txt'
+    get_p_value_if_monte_carlo_within_5_perc(clustered_reduced_results, big_nn_mc_stats_output_txt_path,
+    big_nn_mc_stats_output_pkl_path,)
+
+    with open(big_nn_mc_stats_output_pkl_path, 'rb') as f:
+        nn_statistics = pickle.load(f)
+    data_plots.plot_3d_comparison(nn_statistics, metric="accuracy", color_map="plasma")
+   
 
 
 
-    # big_nn_mc_stats_output_pkl_path = f'{NN_CLUSTERED_DREDUCED_PKL_OUTDIR}/nn_stats_accuracy_f1_runtime_agregated_clustered_reduced_results.pkl'
-    # big_nn_mc_stats_output_txt_path = f'{TXT_OUTDIR}/mc_nn_accuracy_f1_runtime_clustered_reduced_results.txt'
-    # get_p_value_if_monte_carlo_within_5_perc(clustered_reduced_results, big_nn_mc_stats_output_txt_path,
-    # big_nn_mc_stats_output_pkl_path,)
 
-    # with open(big_nn_mc_stats_output_pkl_path, 'rb') as f:
-    #     nn_statistics = pickle.load(f)
-    # data_plots.plot_3d_comparison(nn_statistics, metric="accuracy", color_map="plasma")
-    #change this from scatter plot to heat map where higher peaks are green and lower are red. change to only 1 value per x-y
-    #x 0 y 0 means baseline or no DRed and no clustering applied
 
-    #need 12 graphs
-    #one is PCA, Kmeans, dataset1
-    #       PCA, GMM, dataset1
 
-#call this separately if starting on new dataset
 def check_etl():
     X, y = data_etl.get_data(DATASET_SELECTION,1, 1)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.1, random_state=GT_ID)
@@ -1123,25 +1120,8 @@ def main():
     implement_clustering_on_reduced_features(X,y)
 
 
-    #if we have unga_bunga, what is the search space scope still?
-    #how can human intervention guide unga_bunga to a different search_space?
-
-    #3 different kinds of human insight-driven intervevtion:
-    #sigma tightness: what to do to make outputs more consistent
-    #accuracy, f1,...: what to do to improve baseline
-    #
-
-    #srx space: [ETL, DReduction, Clustering, Manual Fts, Model choice, Model RO, Eval Func Metric]
-    #eval_func: sigma tightness and expected value as composite index?
-
-    #for different features added to make a new feature set?
-    #for different model architecture and their own params?
-
-    #feature to use best_model for inference tasks daily
-    
 if __name__ == "__main__":
     print(f"Torch will be running on {device}")
-    # check_etl()
     main()
     
 
