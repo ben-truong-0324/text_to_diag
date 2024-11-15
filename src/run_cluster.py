@@ -44,8 +44,7 @@ from torch import nn, optim
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-kf = KFold(n_splits=K_FOLD_CV, shuffle=True, random_state=GT_ID)
+
 
 def set_random_seed(seed): #use for torch nn training in MC simulation
     torch.manual_seed(seed)
@@ -293,6 +292,7 @@ def collect_cluster_results(X, y, cluster_algo, preprocessing_tag = ""):
     """
     
     outpath = f'{CLUSTER_PKL_OUTDIR}/{preprocessing_tag}{cluster_algo}_results.pkl'
+    
     if not os.path.exists(outpath):
         print("starting")
         results = {}
@@ -854,7 +854,7 @@ def compile_all_pickles_to_one(big_pkl_path, X):
                     
                     # Check if the pickle file exists and load its data
                     if os.path.exists(pickle_path):
-                        print(f"yes file exists {pickle_path}")
+                        # print(f"yes file exists {pickle_path}")
                         with open(pickle_path, 'rb') as f:
                             clustered_results = pickle.load(f)
                         # Store clustered results in the compiled dictionary
@@ -876,8 +876,8 @@ def compile_all_pickles_to_one(big_pkl_path, X):
 def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl_path, X_original, ):
     
     # Load compiled pickle file
-    if not os.path.exists(output_pkl_path):
-        print("degbug lin e 870")
+    if os.path.exists(output_pkl_path) or not os.path.exists(output_pkl_pat):
+        print("degbug line 881, removed os.path")
         with open(compiled_pkl_path, 'rb') as f:
             compiled_results = pickle.load(f)
         nn_datasets = {}
@@ -885,11 +885,15 @@ def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl
             for k_dim, kdim_data in dreduc_data.items():
                 # Retrieve X reduced of dreduc_algo k_dim
                 reduced_features_pickle_path = f'{DREDUCED_PKL_OUTDIR}/{dreduc_algo}_reduced_{k_dim}_results.pkl'
-                
                 try:
-                    with open(reduced_features_pickle_path, 'rb') as f:
-                        X_reduced, _ = pickle.load(f)  # We already have y, so ignore it from the loaded pickle
+                    try:
+                        with open(reduced_features_pickle_path, 'rb') as f:
+                            X_reduced, y = pickle.load(f)
+                    except:
+                        with open(reduced_features_pickle_path, 'rb') as f:
+                            X_reduced, y, dreduc_metrics = pickle.load(f)
                 except: 
+                    print("couldnt open, ",reduced_features_pickle_path)
                     # print(f'Warning: Reduced features file not found: {reduced_features_pickle_path}')
                     continue
                 
@@ -906,17 +910,27 @@ def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl
                         nn_datasets[(dreduc_algo, k_dim, cluster_algo, n_clusters)] = {
                             'X_clustered_reduced': X_clustered_reduced,
                         }
+                        num_keys = len(nn_datasets)
 
+                        print(f"Processed {num_keys} datasets so far: "
+                                f"Reduction: {dreduc_algo}, Dimensions: {k_dim}, "
+                                f"Clustering: {cluster_algo}, Clusters: {n_clusters}")
+        print("trying to save")
+        for i, (key, value) in enumerate(nn_datasets.items()):
+            chunk_path = f"{}_chunk_{i}.pkl"
+            print(chunk_path)
+            with open(chunk_path, 'wb') as f:
+                pickle.dump({key: value}, f, protocol=4)
         # Save the datasets to a new pickle file
-
-
-        with open(output_pkl_path, 'wb') as f:
-            pickle.dump(nn_datasets, f)
+        # with open(output_pkl_path, 'wb') as f:
+        #     pickle.dump(nn_datasets, f)
         print(f'Training datasets for NN saved to: {output_pkl_path}')
 
 
 def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_output_pkl_path, big_nn_output_txt_path, cv_losses_outpath):
-    if not os.path.exists(big_nn_output_pkl_path):  
+
+    if os.path.exists(big_nn_output_pkl_path) or os.path.exists(big_nn_output_pkl_path):  
+        print("debug line 928")
         nn_clustered_dreduced = {}
     
         best_overall_metric = 0
@@ -927,6 +941,8 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_
 
         with open(big_nn_input_pkl_path, 'rb') as f:
             big_nn_dataset = pickle.load(f)
+        print("doing nn now, ")
+        print(big_nn_dataset)
 
         try:
             if len(y.shape) > 1 and y.shape[1] > 1:
@@ -1044,7 +1060,7 @@ def implement_clustering_on_reduced_features(X,y):
     
     for len_unique_labels_multiple in range(CLUSTERING_MIN_K, CLUSTERING_MAX_K):
         purity_pkl_path = f'{CLUSTER_PKL_OUTDIR}/{len_unique_labels_multiple}_cluster_purity_scores.pkl'
-        purity_txt_path = f'{TXT_OUTDIR}/{len_unique_labels_multiple}_cluster_purity_scores.txt'
+        purity_txt_path = f'{TXT_OUTDIR}/dreduc_cluster_purity_scores.txt'
         calc_purity_score(X,y,len_unique_labels_multiple, purity_pkl_path, purity_txt_path)
 
         # Load the purity scores from the .pkl file and call the function
@@ -1052,7 +1068,7 @@ def implement_clustering_on_reduced_features(X,y):
             purity_scores = pickle.load(f)
         # data_plots.plot_purity_score_of_c_cluster_same_as_original_targets(purity_scores, AGGREGATED_OUTDIR, f'{len_unique_labels_multiple}clusters_')
         data_plots.plot_purity_score_of_c_cluster(purity_scores, AGGREGATED_OUTDIR, f'{len_unique_labels_multiple}_seperate_clusters_')
-        print("donezo")
+
         for thres in np.arange(.001,.1,.001):
             hypotheses.run_dred_improves_purity_score_hypo_test(purity_scores, thres) 
 
@@ -1124,6 +1140,19 @@ def result_check(X_test, y_test):
             print(pred)
             print(y_test[indx])
 
+def y_pred_check():
+    y_pred_files = [f for f in os.listdir(Y_PRED_PKL_OUTDIR) if f.startswith('y_pred') and f.endswith('.pkl')]
+    for y_pred_file in y_pred_files:
+        print(y_pred_file)
+        y_pred_path = os.path.join(Y_PRED_PKL_OUTDIR, y_pred_file)
+        print(y_pred_path)
+        with open(y_pred_path, 'rb') as f:
+            y_preds = pickle.load(f)
+        print(y_preds)
+        
+        
+
+
 
 def check_etl():
     X, y = data_etl.get_data(DATASET_SELECTION,1, 1)
@@ -1152,6 +1181,10 @@ def main():
 
 
 if __name__ == "__main__":
+    print("PyTorch mps availability check: ",torch.backends.mps.is_available())
+    print("PyTorch cuda availability check: ",torch.cuda.is_available())
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    kf = KFold(n_splits=K_FOLD_CV, shuffle=True, random_state=GT_ID)
     print(f"Torch will be running on {device}")
     main()
     

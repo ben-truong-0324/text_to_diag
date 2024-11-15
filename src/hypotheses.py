@@ -78,7 +78,7 @@ def run_dred_improves_purity_score_hypo_test(purity_scores, thresholds):
                             'significant': p_value < 0.05
                         }
                         # Write results to text file
-                        file.write(f"\nClustering Algorithm: {algo}, Dimension Reduction Method: {method}\n")
+                        file.write(f"\nClustering: {algo}, DReduc: {method}\n")
                         file.write("-" * 50 + "\n")
                         file.write(f"Avg Improvement = {avg_improvement:.2%}\n")
                         file.write(f"P-value = {p_value:.4f}, Significant: {'Yes' if p_value < 0.05 else 'No'}\n")
@@ -101,7 +101,7 @@ def evaluate_dreduced_vs_baseline(nn_dreduced, tag):
     # Define output file paths
     txt_path = f"{TXT_OUTDIR}/{tag}_hypothesis_test_results.txt"
     pkl_path = f"{DREDUCED_PKL_OUTDIR}/{tag}_hypothesis_test_results.pkl"
-    if not os.path.exists(pkl_path):
+    if not os.path.exists(pkl_path) and not os.path.exists(txt_path):
 
         # Extract baseline scores for accuracy and F1
         baseline_accuracies = [result[0] for result in nn_dreduced['baseline']['mc_results']]
@@ -159,9 +159,9 @@ def evaluate_dreduced_vs_baseline(nn_dreduced, tag):
 
                 # Write results to the text file
                 file.write(f"Method-Dim: {method_dim}\n")
-                file.write(f"  Average Accuracy: {avg_accuracy:.4f} vs Baseline: {baseline_avg_accuracy:.4f}\n")
+                file.write(f"  Average Accuracy: {avg_accuracy:.4f} vs Baseline: {baseline_avg_accuracy:.4f}, improvement ratio {(avg_accuracy-baseline_avg_accuracy)/baseline_avg_accuracy:.4f}\n")
                 file.write(f"  Accuracy - p-value: {accuracy_p_value:.4f} - Significant: {'Yes' if accuracy_significant else 'No'} - {'Improved' if accuracy_improved else 'Not Improved'}\n")
-                file.write(f"  Average F1 Score: {avg_f1:.4f} vs Baseline: {baseline_avg_f1:.4f}\n")
+                file.write(f"  Average F1 Score: {avg_f1:.4f} vs Baseline: {baseline_avg_f1:.4f}, improvement ratio {(avg_f1-baseline_avg_f1)/baseline_avg_f1:.4f}\n")
                 file.write(f"  F1 Score - p-value: {f1_p_value:.4f} - Significant: {'Yes' if f1_significant else 'No'} - {'Improved' if f1_improved else 'Not Improved'}\n")
                 file.write("-" * 50 + "\n")
 
