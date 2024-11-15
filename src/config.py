@@ -32,7 +32,7 @@ OUTPUT_DIR_CLUSTERING_BASELINE_A3 = f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}/baseline
 ALL_DREDUCED_USEFULNESS_WITH_NN_PICKLE_PATH = f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/dreduced_pickles/nn_dreduced_all_results.pkl'
 
 K_FOLD_CV = 5  # Number of CV folds
-
+DREDUCE_NUM = 5
 
 
 

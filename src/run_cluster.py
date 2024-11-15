@@ -742,7 +742,7 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
 def implement_dimension_reduction(X,y):
     max_k_dimension = X.shape[1]-1
     for method in DIMENSION_REDUCE_METHODS:
-        for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-10),max_k_dimension):
+        for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-DREDUCE_NUM),max_k_dimension):
             # Adjust for LDA to not exceed the limit
             if method == "LDA":
                 n_classes = len(np.unique(y))
@@ -800,7 +800,7 @@ def calc_purity_score(X,y,len_unique_labels_multiple,purity_pkl_path,purity_txt_
         max_k_dimension = X.shape[1]-1
 
         for method in DIMENSION_REDUCE_METHODS:
-            for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-10),max_k_dimension):
+            for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-DREDUCE_NUM),max_k_dimension):
                 for cluster_algo in CLUSTER_ALGORITHMS:
                     try:
                         # Load the clustering results
@@ -837,12 +837,12 @@ def calc_purity_score(X,y,len_unique_labels_multiple,purity_pkl_path,purity_txt_
 
 def compile_all_pickles_to_one(big_pkl_path, X):
     print("debug 839")
-    if os.path.exists(big_pkl_path):
+    if not os.path.exists(big_pkl_path):
         compiled_results = {}
         for method in DIMENSION_REDUCE_METHODS:
             compiled_results[method] = {}
             max_k_dimension = X.shape[1]-1
-            for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-10),max_k_dimension):
+            for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-DREDUCE_NUM),max_k_dimension):
                 compiled_results[method][k_dimension] = {}
                 for cluster_algo in CLUSTER_ALGORITHMS:
                     pickle_path = f'{CLUSTER_PKL_OUTDIR}/{method}_{k_dimension}d_{cluster_algo}_results.pkl'
@@ -872,7 +872,7 @@ def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl
     print("debug 866")
     data_etl.inspect_pickle_content(compiled_pkl_path)
     # Load compiled pickle file
-    if os.path.exists(output_pkl_path):
+    if not os.path.exists(output_pkl_path):
         print("degbug lin e 870")
         with open(compiled_pkl_path, 'rb') as f:
             compiled_results = pickle.load(f)
@@ -912,7 +912,7 @@ def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl
 
 
 def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_output_pkl_path, big_nn_output_txt_path, cv_losses_outpath):
-    if os.path.exists(big_nn_output_pkl_path):  
+    if not os.path.exists(big_nn_output_pkl_path):  
         nn_clustered_dreduced = {}
     
         best_overall_metric = 0
@@ -1012,7 +1012,7 @@ def implement_clustering_on_reduced_features(X,y):
     for method in DIMENSION_REDUCE_METHODS:
 
         max_k_dimension = X.shape[1]-1
-        for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-10),max_k_dimension):
+        for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-DREDUCE_NUM),max_k_dimension):
             try: #try because some dimension reduction like LDA has different dimension count
                 pickle_path = f'{DREDUCED_PKL_OUTDIR}/{method}_reduced_{k_dimension}_results.pkl'
             
