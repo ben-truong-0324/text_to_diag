@@ -1049,11 +1049,9 @@ def implement_clustering_on_reduced_features(X,y):
         data_plots.plot_purity_score_of_c_cluster(purity_scores, AGGREGATED_OUTDIR, f'{len_unique_labels_multiple}_seperate_clusters_')
         print("donezo")
         for thres in np.arange(.001,.1,.001):
-            hypotheses.run_dred_improves_purity_score_hypo_test(purity_scores, thres) #test of improved 10%
-        # hypotheses.run_dred_improves_purity_score_hypo_test(purity_scores, .01) #test if improved 1%
+            hypotheses.run_dred_improves_purity_score_hypo_test(purity_scores, thres) 
 
-        data_plots.plot_purity_significance_from_pkl(AGGREGATED_OUTDIR)
-                
+
     ######### now get usefulness by training nn
     big_pkl_path = f'{DREDUCED_CLUSTER_PKL_OUTDIR}/agregated_clustered_reduced_results.pkl'
     big_nn_input_pkl_path = f'{DREDUCED_CLUSTER_PKL_OUTDIR}/nn_training_data_agregated_clustered_reduced_results.pkl'
