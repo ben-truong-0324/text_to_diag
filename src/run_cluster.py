@@ -200,22 +200,22 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
         if y_train.shape[1] > 1:
             test_outputs_np = outputs.sigmoid().cpu().numpy()  # Sigmoid for multi-label probability
            
-            y_test_np = y_test.cpu().numpy()
+            y_test = y_test.cpu().numpy()
             # predicted_labels = test_outputs_np.astype(int)
             best_threshold = .5
             # best_threshold, best_accuracy = optimize_threshold(test_outputs_np, y_test_np)
-            predicted_labels = (test_outputs_np >= best_threshold).astype(int)
+            predicted = (test_outputs_np >= best_threshold).astype(int)
             # print(best_threshold)
 
             # Calculate accuracy, AUC-ROC, and F1-score for multi-label classification
             # Individual label accuracy (mean accuracy for each label)
-            label_accuracy = (predicted_labels == y_test_np).mean(axis=0)
+            label_accuracy = (predicted == y_test).mean(axis=0)
             accuracy = label_accuracy.mean()  # Average accuracy across all labels
             try:
-                auc_roc = roc_auc_score(y_test_np, test_outputs_np, average="macro")
+                auc_roc = roc_auc_score(y_test, test_outputs_np, average="macro")
             except ValueError:
                 auc_roc = float("nan")  # Handle cases where AUC-ROC can't be calculated
-            f1 = f1_score(y_test_np, predicted_labels, average="macro")
+            f1 = f1_score(y_test, predicted, average="macro")
 
         #if y is single label
         else:
@@ -235,7 +235,7 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
 
 
     
-    return accuracy, f1,auc_roc, runtime,model,epoch_losses
+    return accuracy, f1,auc_roc, runtime,model,epoch_losses,y_test,predicted
 
 
 def run_clustering(cluster_algo, n_clusters, random_state, X, y):
@@ -335,6 +335,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
     running_best_model = None
     running_best_overall_cv_losses = None
     running_best_metrics_of_Xy_srx_space = []
+    running_best_y_preds = None
     outer_ro_running_best_metric = 0
     #nested loops, outer loop iterates different params, inner loop iterates for kf CV
 
@@ -366,12 +367,14 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
 
         avg_metric_per_cv = [0 for _ in range(K_FOLD_CV)] if do_cv else [0]
         cv_losses = []
+        y_preds = []
+
         for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X) if do_cv else [(range(len(X)), range(len(X)))]):
             X_train, X_val = X[train_idx], X[val_idx]
             y_train, y_val = y[train_idx], y[val_idx]
             
             # Train and evaluate model with current parameters
-            accuracy, f1,auc_roc, runtime,temp_model,epoch_losses = train_nn_with_early_stopping_with_param(
+            accuracy, f1,auc_roc, runtime,temp_model,epoch_losses,y_test,predicted = train_nn_with_early_stopping_with_param(
                 X_train, y_train, X_val, y_val, current_params
             )
             
@@ -386,6 +389,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             elif "auc" in EVAL_FUNC_METRIC:
                 avg_metric_per_cv[fold_idx] = auc_roc
             cv_losses.append(epoch_losses)
+            y_preds.append((y_test,predicted))
 
         # Calculate average metric across folds
         avg_metric = np.mean(avg_metric_per_cv)
@@ -401,6 +405,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             outer_ro_running_best_metric = inner_cv_running_best_metric
             running_best_model = temp_model
             running_best_metrics_of_Xy_srx_space = current_metrics_of_Xy
+            running_best_y_preds = y_preds
             running_best_overall_cv_losses = cv_losses
         
         # Restart logic for RHC
@@ -416,7 +421,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
         final_best_method = type_tag
         final_best_overall_cv_losses = running_best_overall_cv_losses
             
-    return final_best_metric, final_best_model, final_best_method, running_best_metrics_of_Xy_srx_space, final_best_overall_cv_losses
+    return final_best_metric, final_best_model, final_best_method, running_best_metrics_of_Xy_srx_space, final_best_overall_cv_losses, running_best_y_preds
 
 
 
@@ -453,12 +458,7 @@ def get_cluster_usefulness_with_nn(results, X,y,outpath,cv_losses_outpath):
                 y_labels = torch.FloatTensor(y_values).to(device)
             else:
                 y_labels = torch.LongTensor(y_values).to(device)
-        # try:
-        #     # For cases where y is already a NumPy array or similar structure
-        #     y_labels = torch.FloatTensor(y).to(device)
-        # except AttributeError:
-        #     # If y is a Pandas DataFrame or Series, convert to NumPy first
-        #     y_labels = torch.FloatTensor(y.values).to(device)
+    
 
         for n_clusters in results.keys():
             labels = results[n_clusters]['labels']
@@ -466,7 +466,7 @@ def get_cluster_usefulness_with_nn(results, X,y,outpath,cv_losses_outpath):
             X_with_clustered_labels['cluster'] = labels  # Add cluster labels as a new feature
             X_features = torch.FloatTensor(X_with_clustered_labels.values).to(device)
             # best_overall_metric, best_cluster_model, best_cluster_count could be deprecated?
-            best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space, best_overall_cv_losses = run_model_tuning_RO_for_Xy_srx_space(
+            best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space, best_overall_cv_losses,running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
                 X_features, 
                 y_labels, 
                 do_cv=True, 
@@ -478,6 +478,8 @@ def get_cluster_usefulness_with_nn(results, X,y,outpath,cv_losses_outpath):
                 type_tag=f"{n_clusters}_c"             # Keyword argument
             )
             nn_results[n_clusters] = {'mc_results': running_metrics_Xy_srx_space}
+            with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_cluster_{n_clusters}.pkl', 'wb') as f:
+                pickle.dump(running_best_y_preds,f)
 
         #########################
         # Baseline without clustered labels
@@ -485,7 +487,7 @@ def get_cluster_usefulness_with_nn(results, X,y,outpath,cv_losses_outpath):
 
 
         # best_overall_metric, best_cluster_model, best_cluster_count could be deprecated?
-        best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space, best_overall_cv_losses = run_model_tuning_RO_for_Xy_srx_space(
+        best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space, best_overall_cv_losses, running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
             X_features, 
             y_labels, 
             do_cv=True, 
@@ -496,6 +498,8 @@ def get_cluster_usefulness_with_nn(results, X,y,outpath,cv_losses_outpath):
             best_overall_cv_losses = best_overall_cv_losses,
             type_tag=f"baseline"             # Keyword argument
         )
+        with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_cluster_baseline.pkl', 'wb') as f:
+            pickle.dump(running_best_y_preds,f)
         with open(cv_losses_outpath, 'wb') as f:
             pickle.dump(best_overall_cv_losses,f)
             
@@ -638,7 +642,6 @@ def get_dimension_reduced_features(method, k_dimension, X, y, pickle_outpath):
 def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_losses_outpath):
     
     if not os.path.exists(pickle_outpath):  
-        print("harro")
         nn_dreduced = {}
         running_best_model = None
         running_best_method = None
@@ -654,10 +657,6 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
         best_overall_metric = 0
         best_overall_cv_losses = None
 
-        # try:
-        #     y_labels = torch.LongTensor(y.values).to(device)
-        # except:
-        #     y_labels = torch.LongTensor(y.values).to(device)
         try:
             if len(y.shape) > 1 and y.shape[1] > 1:
                 # Multi-label case: use FloatTensor for multi-hot encoded labels
@@ -679,22 +678,23 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
                 y_labels = torch.LongTensor(y_values).to(device)
 
         for method in DIMENSION_REDUCE_METHODS:
-            for k_dimension in range(int(max_k_dimension/2),max_k_dimension):
+            for k_dimension in range(max(int(max_k_dimension/2),max_k_dimension-DREDUCE_NUM),max_k_dimension):
                 try:
                     print(f"{method} {k_dimension}")
 
                     pickle_path = f'{DREDUCED_PKL_OUTDIR}/{method}_reduced_{k_dimension}_results.pkl'
-                    with open(pickle_path, 'rb') as f:
-                        try:
+                    try:
+                        with open(pickle_path, 'rb') as f:
                             X_reduced, y = pickle.load(f)
-                        except:
+                    except:
+                        with open(pickle_path, 'rb') as f:
                             X_reduced, y, dreduc_metrics = pickle.load(f)
                     if "Random" in method:
                         X_reduced = X_reduced.values
                     X_reduced = torch.FloatTensor(X_reduced).to(device)  
 
                     # best_overall_metric, best_cluster_model, best_cluster_count could be deprecated?
-                    best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space,best_overall_cv_losses = run_model_tuning_RO_for_Xy_srx_space(
+                    best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space,best_overall_cv_losses, running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
                         X_reduced, 
                         y_labels, 
                         do_cv=True, 
@@ -706,8 +706,12 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
                         type_tag=f"{method}_{k_dimension}"             # Keyword argument
                     )
                     nn_dreduced[f"{method}_{k_dimension}"] = { 'mc_results': running_metrics_Xy_srx_space}
+                    with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_dred_{method}_{k_dimension}.pkl', 'wb') as f:
+                        pickle.dump(running_best_y_preds,f)
+
 
                 except Exception as e:
+                    print(e)
                     if "LDA" not in method:
                         print(e)
         
@@ -716,7 +720,7 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
         X_baseline = torch.FloatTensor(X.values).to(device)  # Use original features
 
         # best_overall_metric, best_cluster_model, best_cluster_count could be deprecated?
-        best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space,best_overall_cv_losses = run_model_tuning_RO_for_Xy_srx_space(
+        best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space,best_overall_cv_losses, running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
                 X_baseline, 
                 y_labels, 
                 do_cv=True, 
@@ -728,6 +732,8 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
                 type_tag=f"baseline"             # Keyword argument
                 )
         nn_dreduced["baseline"] = {'mc_results': running_metrics_Xy_srx_space}
+        with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_dred_baseline.pkl', 'wb') as f:
+            pickle.dump(running_best_y_preds,f)
 
         torch.save(best_overall_model, f'{AGGREGATED_OUTDIR}/best_m_{best_overall_method}.pth')
 
@@ -836,7 +842,6 @@ def calc_purity_score(X,y,len_unique_labels_multiple,purity_pkl_path,purity_txt_
         print(f"Purity scores saved to {purity_pkl_path} \nand {purity_txt_path}.")
 
 def compile_all_pickles_to_one(big_pkl_path, X):
-    print("debug 839")
     if not os.path.exists(big_pkl_path):
         compiled_results = {}
         for method in DIMENSION_REDUCE_METHODS:
@@ -869,8 +874,7 @@ def compile_all_pickles_to_one(big_pkl_path, X):
 
 
 def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl_path, X_original, ):
-    print("debug 866")
-    data_etl.inspect_pickle_content(compiled_pkl_path)
+    
     # Load compiled pickle file
     if not os.path.exists(output_pkl_path):
         print("degbug lin e 870")
@@ -924,9 +928,6 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_
         with open(big_nn_input_pkl_path, 'rb') as f:
             big_nn_dataset = pickle.load(f)
 
-        print("debug 918")
-        data_etl.inspect_pickle_content(big_nn_input_pkl_path)
-
         try:
             if len(y.shape) > 1 and y.shape[1] > 1:
                 # Multi-label case: use FloatTensor for multi-hot encoded labels
@@ -950,7 +951,7 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_
         # Baseline without reduced features
         X_baseline = torch.FloatTensor(X.values).to(device)  # Use original features
         # best_overall_metric, best_cluster_model, best_cluster_count could be deprecated?
-        best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space,best_overall_cv_losses = run_model_tuning_RO_for_Xy_srx_space(
+        best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space,best_overall_cv_losses, running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
                 X_baseline, 
                 y_labels, 
                 do_cv=True, 
@@ -962,6 +963,8 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_
                 type_tag=f"baseline"             # Keyword argument
                 )
         nn_clustered_dreduced["baseline"] = {'mc_results': running_metrics_Xy_srx_space}
+        with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_cludred_baseline.pkl', 'wb') as f:
+            pickle.dump(running_best_y_preds,f)
 
         
 
@@ -970,7 +973,7 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_
             X_reduced = torch.FloatTensor(X_reduced.values).to(device)
             print((dreduc_algo, k_dim, cluster_algo, n_clusters))
 
-            best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space,best_overall_cv_losses = run_model_tuning_RO_for_Xy_srx_space(
+            best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space,best_overall_cv_losses, running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
                 X_baseline, 
                 y_labels, 
                 do_cv=True, 
@@ -983,6 +986,8 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_
                 )
             nn_clustered_dreduced[(dreduc_algo, k_dim, cluster_algo, n_clusters)] = {
                 'mc_results': running_metrics_Xy_srx_space }
+            with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_{dreduc_algo}{k_dim}{cluster_algo}{n_clusters}.pkl', 'wb') as f:
+                pickle.dump(running_best_y_preds,f)
         torch.save(best_overall_model, f'{AGGREGATED_OUTDIR}/best_model_{best_overall_method}.pth')
         # loaded_model = torch.load('best_model.pth')
 
@@ -1067,7 +1072,7 @@ def implement_clustering_on_reduced_features(X,y):
                     big_nn_output_pkl_path,big_nn_output_txt_path, cv_losses_outpath)
     
     ###########################
-    data_etl.inspect_pickle_content(big_nn_output_pkl_path)
+    # data_etl.inspect_pickle_content(big_nn_output_pkl_path)
     with open(big_nn_output_pkl_path, 'rb') as f:
         clustered_reduced_results = pickle.load(f)
 
@@ -1086,14 +1091,38 @@ def implement_clustering_on_reduced_features(X,y):
     get_p_value_if_monte_carlo_within_5_perc(clustered_reduced_results, big_nn_mc_stats_output_txt_path,
     big_nn_mc_stats_output_pkl_path,)
 
-    with open(big_nn_mc_stats_output_pkl_path, 'rb') as f:
-        nn_statistics = pickle.load(f)
-    data_plots.plot_3d_comparison(nn_statistics, metric="accuracy", color_map="plasma")
+
    
+def load_and_predict(model_path, X_test):
+    loaded_model = torch.load(model_path)
+    loaded_model.to(device)
+    loaded_model.eval()
+    if not isinstance(X_test, torch.Tensor):
+        X_test = torch.FloatTensor(X_test.values).to(device)
 
+    # Generate predictions
+    with torch.no_grad():  # No need to track gradients for inference
+        outputs = loaded_model(X_test)
+        if y_train.shape[1] > 1:
+            test_outputs_np = outputs.sigmoid().cpu().numpy()  
+            best_threshold = .5
+            predictions = (test_outputs_np >= best_threshold).astype(int)
+        else:
+             _, predictions = torch.max(outputs, 1)
+    
+    return predictions
 
-
-
+def result_check(X_test, y_test):
+    model_files = [f for f in os.listdir(AGGREGATED_OUTDIR) if f.startswith('best_') and f.endswith('.pth')]
+    for model_file in model_files:
+        print(model_file)
+        model_path = os.path.join(AGGREGATED_OUTDIR, model_file)
+        print(model_path)
+        predictions = load_and_predict(model_path, X_test)
+        
+        for indx, pred in enumerate(predictions):
+            print(pred)
+            print(y_test[indx])
 
 
 def check_etl():
@@ -1116,6 +1145,10 @@ def main():
     implement_clustering(X, y)
     implement_dimension_reduction(X,y)
     implement_clustering_on_reduced_features(X,y)
+
+    # result_check(X_test, y_test)
+    
+
 
 
 if __name__ == "__main__":

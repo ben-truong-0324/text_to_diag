@@ -589,7 +589,6 @@ import matplotlib.pyplot as plt
 
 def plot_dreduced_usefulness_by_nn_acc_f1(nn_results, outpath):
     if not os.path.exists(outpath):  
-        # print(nn_results)
         # Extract baseline results
         baseline_mc_results = np.array(nn_results["baseline"]['mc_results'])
         baseline_accuracy = np.mean(baseline_mc_results[:, 0])
@@ -662,7 +661,6 @@ def plot_dreduced_usefulness_by_nn_acc_f1(nn_results, outpath):
 
 def plot_dreduced_usefulness_by_nn_banded_mean(nn_results, outpath):
     if not os.path.exists(outpath):
-        print(nn_results)
         # Extract baseline results
         baseline_mc_results = np.array(nn_results["baseline"]['mc_results'])
         baseline_accuracy = np.mean(baseline_mc_results[:, 0])
