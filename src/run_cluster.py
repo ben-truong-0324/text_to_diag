@@ -16,7 +16,7 @@ import pickle
 import random
 from copy import deepcopy
 import hypotheses
-
+import math
 
 from scipy.stats import ttest_1samp
 
@@ -161,6 +161,7 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
     print("Starting training loop...")
 
     for epoch in range(max_epochs):
+        print(epoch)
         epoch_trained+=1
         model.train()
 
@@ -353,11 +354,14 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
 
     for i in range(RANDOM_OPTIMIZATION_ITERATION_COUNT):
         if random_opt_algo == "RHC":  # Random Hill Climbing
-            current_params = deepcopy(RANDOM_SRX_PARAMS[np.random.randint(len(RANDOM_SRX_PARAMS))])
-            for param_name in current_params.keys():
-                if param_name == 'lr':
-                    # Slightly adjust learning rate randomly
-                    current_params[param_name] *= np.random.choice([0.9, 1.1])  
+            best_params, best_score = random_hill_climbing(PARAM_GRID, iterations=10)
+            print(f"RHC: Best Params: {best_params}, Best Score: {best_score}")
+        elif random_opt_algo == "GA":  # Genetic Algorithm
+            best_params, best_score = genetic_algorithm(PARAM_GRID, population_size=10, generations=5, mutation_rate=0.1)
+            print(f"GA: Best Params: {best_params}, Best Score: {best_score}")
+        elif random_opt_algo == "SA":  # Simulated Annealing
+            best_params, best_score = simulated_annealing(PARAM_GRID, iterations=10, initial_temp=10, cooling_rate=0.9)
+            print(f"SA: Best Params: {best_params}, Best Score: {best_score}")
 
         elif random_opt_algo == "default":  #
             current_params = random.choice(RANDOM_SRX_PARAMS)
@@ -425,7 +429,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
 
 
 
-def get_cluster_usefulness_with_nn(results, X,y,outpath,cv_losses_outpath):
+def get_cluster_usefulness_with_nn(results, X,y,cluster_algo,outpath,cv_losses_outpath):
     if not os.path.exists(outpath):
         nn_results = {}
         running_best_model = None  
@@ -478,7 +482,7 @@ def get_cluster_usefulness_with_nn(results, X,y,outpath,cv_losses_outpath):
                 type_tag=f"{n_clusters}_c"             # Keyword argument
             )
             nn_results[n_clusters] = {'mc_results': running_metrics_Xy_srx_space}
-            with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_cluster_{n_clusters}.pkl', 'wb') as f:
+            with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_{cluster_algo}_{n_clusters}.pkl', 'wb') as f:
                 pickle.dump(running_best_y_preds,f)
 
         #########################
@@ -580,7 +584,7 @@ def implement_clustering(X,y):
         #to test for results using torch with cpu, run a differnt DRAFT_VER_A3
         clustered_nn_pkl_path = f'{CLUSTER_PKL_OUTDIR}/{CLUSTERING_MAX_K}_{cluster_algo}_cluster_as_usefulness_with_nn_wrapping_results.pkl'
         cv_losses_outpath = f'{CLUSTER_PKL_OUTDIR}/{CLUSTERING_MAX_K}_{cluster_algo}_cv_losses.pkl'
-        get_cluster_usefulness_with_nn(cluster_results,X,y,clustered_nn_pkl_path,cv_losses_outpath)
+        get_cluster_usefulness_with_nn(cluster_results,X,y,cluster_algo,clustered_nn_pkl_path,cv_losses_outpath)
         with open(clustered_nn_pkl_path, 'rb') as f:
             cluster_nn_usefulness_results = pickle.load(f)
         
@@ -873,11 +877,12 @@ def compile_all_pickles_to_one(big_pkl_path, X):
 
 
 
-def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl_path, X_original, ):
+def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl_paths, X_original, ):
     
     # Load compiled pickle file
-    if os.path.exists(output_pkl_path) or not os.path.exists(output_pkl_pat):
-        print("degbug line 881, removed os.path")
+    # if os.path.exists(output_pkl_paths[0]) or 
+    if not os.path.exists(output_pkl_paths[0]):
+        # print("degbug line 881, removed os.path")
         with open(compiled_pkl_path, 'rb') as f:
             compiled_results = pickle.load(f)
         nn_datasets = {}
@@ -912,24 +917,38 @@ def generate_all_pickles_into_nn_training_datasets(compiled_pkl_path, output_pkl
                         }
                         num_keys = len(nn_datasets)
 
-                        print(f"Processed {num_keys} datasets so far: "
+                        print(f"Processed {num_keys} datasets: "
                                 f"Reduction: {dreduc_algo}, Dimensions: {k_dim}, "
                                 f"Clustering: {cluster_algo}, Clusters: {n_clusters}")
-        print("trying to save")
-        for i, (key, value) in enumerate(nn_datasets.items()):
-            chunk_path = f"{}_chunk_{i}.pkl"
-            print(chunk_path)
-            with open(chunk_path, 'wb') as f:
-                pickle.dump({key: value}, f, protocol=4)
-        # Save the datasets to a new pickle file
-        # with open(output_pkl_path, 'wb') as f:
-        #     pickle.dump(nn_datasets, f)
-        print(f'Training datasets for NN saved to: {output_pkl_path}')
+        
+
+        # Check if nn_datasets has items
+        if not nn_datasets:
+            print("No data to save.")
+        else:
+            print("trying to save")
+            items = list(nn_datasets.items())
+            total_items = len(items)
+            chunk_size = max(1, math.ceil(total_items / BIG_PICKLE_CHUNK_NUM))  # Ensure at least one item per chunk 
+            
+            # Ensure we don't use more output paths than needed
+            for i, chunk_path in enumerate(output_pkl_paths[:math.ceil(total_items / chunk_size)]):
+                start_index = i * chunk_size
+                end_index = min(start_index + chunk_size, total_items)  
+                chunk = dict(items[start_index:end_index])  #
+                with open(chunk_path, 'wb') as f:
+                    pickle.dump(chunk, f, protocol=4)
+                
+                print(f"Saved chunk {i+1}/{BIG_PICKLE_CHUNK_NUM} to {chunk_path} with {len(chunk)} items.")
+            # If fewer items than chunk_num, notify about unused paths
+            if total_items < BIG_PICKLE_CHUNK_NUM:
+                unused_paths = output_pkl_paths[math.ceil(total_items / chunk_size):]
+                print(f"Warning: {len(unused_paths)} output paths were unused due to insufficient data.")
 
 
-def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_output_pkl_path, big_nn_output_txt_path, cv_losses_outpath):
+def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, big_nn_output_pkl_path, big_nn_output_txt_path, cv_losses_outpath):
 
-    if os.path.exists(big_nn_output_pkl_path) or os.path.exists(big_nn_output_pkl_path):  
+    if not os.path.exists(big_nn_output_pkl_path):  
         print("debug line 928")
         nn_clustered_dreduced = {}
     
@@ -939,10 +958,15 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, big_nn_
         best_overall_method = None
         running_metrics_Xy_srx_space = None
 
-        with open(big_nn_input_pkl_path, 'rb') as f:
-            big_nn_dataset = pickle.load(f)
-        print("doing nn now, ")
-        print(big_nn_dataset)
+        
+
+        big_nn_dataset = {}  # Initialize the dictionary to hold merged data
+        for i, pkl_path in enumerate(big_nn_input_pkl_paths, start=1):
+            print(f"Processing chunk {i}/{len(big_nn_input_pkl_paths)}: {pkl_path}")
+            with open(pkl_path, 'rb') as f:
+                chunk = pickle.load(f)
+                big_nn_dataset.update(chunk)
+        print(f"Merged dataset contains {len(big_nn_dataset)} items.")
 
         try:
             if len(y.shape) > 1 and y.shape[1] > 1:
@@ -1075,16 +1099,19 @@ def implement_clustering_on_reduced_features(X,y):
 
     ######### now get usefulness by training nn
     big_pkl_path = f'{DREDUCED_CLUSTER_PKL_OUTDIR}/agregated_clustered_reduced_results.pkl'
-    big_nn_input_pkl_path = f'{DREDUCED_CLUSTER_PKL_OUTDIR}/nn_training_data_agregated_clustered_reduced_results.pkl'
 
+    big_nn_input_pkl_paths = []
+    for i in range(BIG_PICKLE_CHUNK_NUM):
+        big_nn_input_pkl_paths.append(f"{DREDUCED_CLUSTER_PKL_OUTDIR}/nn_aggregated_clured_results_{i}_chunk.pkl")
+        
     compile_all_pickles_to_one(big_pkl_path,X)
-    generate_all_pickles_into_nn_training_datasets(big_pkl_path, big_nn_input_pkl_path, X)
+    generate_all_pickles_into_nn_training_datasets(big_pkl_path, big_nn_input_pkl_paths, X)
     #stored as dict with key ('PCA', 1, 'kmeans', 2) or nn_datasets[(dreduc_algo, k_dim, cluster_algo, n_clusters)] = {'X_clustered_reduced': X_clustered_reduced, }
     big_nn_output_pkl_path = f'{DREDUCED_CLUSTER_PKL_OUTDIR}/nn_accuracy_f1_runtime_agregated_clustered_reduced_results.pkl'
     big_nn_output_txt_path = f'{TXT_OUTDIR}/nn_accuracy_f1_runtime_clustered_reduced_results.txt'
     cv_losses_outpath = f'{DREDUCED_CLUSTER_PKL_OUTDIR}/clustered_reduced_cv_losses.pkl'
 
-    get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_path,X, y, 
+    get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, 
                     big_nn_output_pkl_path,big_nn_output_txt_path, cv_losses_outpath)
     
     ###########################
@@ -1140,16 +1167,230 @@ def result_check(X_test, y_test):
             print(pred)
             print(y_test[indx])
 
+def plot_y_pred_single_label_confusion_matrix(y_test, predicted):
+    """
+    Plot confusion matrix for binary single-label classification.
+    """
+    cm = confusion_matrix(y_test, predicted)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1])
+    disp.plot(cmap='Blues', values_format='d')
+    plt.title("Confusion Matrix (Single Label)")
+    plt.show()
+
+def plot_y_pred_multi_label(y_test, predicted):
+    """
+    Plot heatmap for binary multi-label classification.
+    """
+    fig, ax = plt.subplots(figsize=(10, 6))
+    # Compute a binary confusion matrix for each label
+    num_labels = predicted.shape[1]
+    heatmap_data = np.zeros((num_labels, 2))  # 2 columns for 0 and 1
+
+    for label_idx in range(num_labels):
+        cm = confusion_matrix(y_test[:, label_idx], predicted[:, label_idx], labels=[0, 1])
+        heatmap_data[label_idx] = cm[:, 1]  # Add true positive counts for 1
+    
+    ax.imshow(heatmap_data, cmap='Blues', aspect='auto')
+    ax.set_yticks(range(num_labels))
+    ax.set_yticklabels([f"Label {i}" for i in range(num_labels)])
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(["Predicted 0", "Predicted 1"])
+    ax.set_title("Confusion Heatmap (Multi-label)")
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("Label")
+    plt.colorbar(ax.images[0], ax=ax)
+    plt.show()
+
+
+
+import pickle
+import glob
+import re
+
+def extract_parameters(filename):
+    """Extract parameters from filename like 'pred_stats_accuracy_y_pred_PCA498kmeans23.pkl'"""
+    # Extract the part after y_pred_
+    params_part = filename.split('y_pred_')[1].replace('.pkl', '')
+    
+    # Use regex to extract parameters
+    pattern = r'([A-Za-z]+)(\d+)([A-Za-z]+)(\d+)'
+    match = re.match(pattern, params_part)
+    
+    if match:
+        dreduc_algo = match.group(1)    # PCA
+        dreduc_k = int(match.group(2))  # 498
+        cluster_algo = match.group(3)    # kmeans
+        cluster_k = int(match.group(4))  # 23
+        
+        return {
+            'dreduc_algo': dreduc_algo,
+            'dreduc_k': dreduc_k,
+            'cluster_algo': cluster_algo,
+            'cluster_k': cluster_k
+        }
+    return None
+
+def extract_y_pred_parameters(filename):
+    """
+    Extract parameters from the filename. Adjusts for baseline cases and missing components.
+    """
+    params = {
+        'dreduc_algo': None,  # Dimensionality reduction algorithm
+        'dreduc_k': None,     # Dimensionality reduction parameter (k)
+        'cluster_algo': None, # Clustering algorithm
+        'cluster_k': None     # Clustering parameter (k)
+    }
+    # Regex patterns
+    # dreduc_pattern = r"(PCA|TSNE|UMAP)(\d+)"  # Match algo and k (e.g., "PCA498")
+    # cluster_pattern = r"(kmeans|dbscan|agglomerative)(\d+)"  # Match algo and k (e.g., "kmeans21")
+    # Build regex patterns dynamically
+    dreduc_pattern = rf"({'|'.join(DIMENSION_REDUCE_METHODS)})(\d+)"  # Match algo and k
+    cluster_pattern = rf"({'|'.join(CLUSTER_ALGORITHMS)})(\d+)"       # Match algo and k
+    
+    # Baseline case
+    if "baseline" in filename:
+        params['cluster_algo'] = "baseline"
+        return params
+
+    # Extract dimensionality reduction parameters
+    dreduc_match = re.search(dreduc_pattern, filename)
+    if dreduc_match:
+        params['dreduc_algo'] = dreduc_match.group(1)
+        params['dreduc_k'] = int(dreduc_match.group(2))
+    
+    # Extract clustering parameters
+    cluster_match = re.search(cluster_pattern, filename)
+    if cluster_match:
+        params['cluster_algo'] = cluster_match.group(1)
+        params['cluster_k'] = int(cluster_match.group(2))
+
+    return params if dreduc_match or cluster_match else None
+
+    # # Define regex for capturing different cases
+    # pattern = re.compile(
+    #     r"pred_stats_accuracy(?:_y_pred)?"
+    #     r"(?:_dreduc_(?P<dreduc_algo>[a-zA-Z0-9]+))?"
+    #     r"(?:_k(?P<dreduc_k>\d+))?"
+    #     r"(?:_cluster_(?P<cluster_algo>[a-zA-Z0-9]+))?"
+    #     r"(?:_(?P<cluster_k>\d+))?"
+    #     r"(?:_baseline)?\.pkl$"
+    # )
+    
+    # # Match the pattern
+    # match = pattern.match(filename)
+    # if not match:
+    #     return None
+
+    # # Extract parameters, defaulting to None if not present
+    # params = match.groupdict()
+    
+    # # Convert numerical parameters to integers if present
+    # if params['dreduc_k'] is not None:
+    #     params['dreduc_k'] = int(params['dreduc_k'])
+    # if params['cluster_k'] is not None:
+    #     params['cluster_k'] = int(params['cluster_k'])
+    
+    # # Handle baseline cases explicitly
+    # if 'baseline' in filename:
+    #     params['dreduc_algo'] = 'baseline'
+    #     params['dreduc_k'] = None
+    #     params['cluster_algo'] = None
+    #     params['cluster_k'] = None
+
+    # return params
+
+def merge_y_pred_pkl_files(input_dir, output_file):
+    """
+    Merge all prediction stat pkl files into one consolidated pickle file
+    
+    Parameters:
+    input_dir: directory containing individual pkl files
+    output_file: path for the merged pickle file
+    """
+    if not os.path.exists(output_file):
+        # Dictionary to store all results
+        merged_results = {}
+        
+        # Get all relevant pkl files
+        pkl_files = glob.glob(f"{input_dir}/pred_stats_*.pkl")
+        
+        for pkl_file in pkl_files:
+            # Get base filename
+            base_filename = pkl_file.split('/')[-1]
+
+            # Extract parameters from filename
+            params = extract_y_pred_parameters(base_filename)
+            if params is None:
+                print(f"Skipping file {base_filename} - doesn't match expected pattern")
+                continue
+
+                
+            # Load the pickle file
+            with open(pkl_file, 'rb') as f:
+                stats_data = pickle.load(f)
+            
+            key = (
+                params.get('dreduc_algo', 'None'),
+                params.get('dreduc_k', 'None'),
+                params.get('cluster_algo', 'None'),
+                params.get('cluster_k', 'None'),
+            )
+            
+            # Store relevant metrics
+            merged_results[key] = {
+                'average': stats_data['average'],
+                'std': stats_data['std']
+            }
+        
+        # Save merged results
+        with open(output_file, 'wb') as f:
+            pickle.dump(merged_results, f)
+        
+        print(f"Merged {len(merged_results)} results into {output_file}")
+    else: 
+        with open(output_file, 'rb') as f:
+            merged_results = pickle.load(f)
+
+    return merged_results
+
+
+
+
+
+
 def y_pred_check():
     y_pred_files = [f for f in os.listdir(Y_PRED_PKL_OUTDIR) if f.startswith('y_pred') and f.endswith('.pkl')]
+    is_multi = False
     for y_pred_file in y_pred_files:
-        print(y_pred_file)
         y_pred_path = os.path.join(Y_PRED_PKL_OUTDIR, y_pred_file)
-        print(y_pred_path)
         with open(y_pred_path, 'rb') as f:
             y_preds = pickle.load(f)
-        print(y_preds)
+        # Analyze the structure of y_preds
+        y_test, predicted = y_preds[-1]
+
         
+        if isinstance(predicted[0], (list, np.ndarray)):  # Multi-label
+            # print("Detected multi-label classification.")
+            is_multi = True
+            data_plots.plot_prediction_comparison(y_test, predicted, EVAL_FUNC_METRIC, 
+                    title=f"{'.'.join(y_pred_file.split('.')[:-1])}", )
+            
+        else:  # Single-label
+            pass
+    if is_multi:
+        # Example usage:
+        input_directory = Y_PRED_PKL_OUTDIR
+        output_file = f"{Y_PRED_PKL_OUTDIR}/merged_y_prediction_stats.pkl"
+        merged_data = merge_y_pred_pkl_files(input_directory, output_file)
+
+        # for key, value in list(merged_data.items())[:3]:  # Show first 3 entries
+        #     print(f"\nParameters: {key}")
+        #     print(f"Average: {value['average']:.3f}")
+        #     print(f"Std: {value['std']:.3f}")
+        # print(merged_data.keys())
+
+        data_plots.plot_merged_y_pred_data(merged_data)
+
         
 
 
@@ -1175,6 +1416,8 @@ def main():
     implement_dimension_reduction(X,y)
     implement_clustering_on_reduced_features(X,y)
 
+    y_pred_check()
+
     # result_check(X_test, y_test)
     
 
@@ -1186,6 +1429,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     kf = KFold(n_splits=K_FOLD_CV, shuffle=True, random_state=GT_ID)
     print(f"Torch will be running on {device}")
+
     main()
     
 

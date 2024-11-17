@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib as mlt
 import seaborn as sns
 import time
 import pandas as pd
@@ -1078,61 +1079,170 @@ def plot_purity_significance_from_pkl(outpath=None):
 
 
 
-def graph_class_imbalance_multilabel(Y_df, outpath):
-    start_time = time.time()
-
-    # Calculate the class distribution (percentage) for each label (column) in Y_df
-    class_0_counts = (Y_df == 0).sum(axis=0)  # Count of 0s in each column
-    class_1_counts = (Y_df == 1).sum(axis=0)  # Count of 1s in each column
-
-    # Calculate the percentage of each class for each label
-    class_0_percentages = class_0_counts / Y_df.shape[0]
-    class_1_percentages = class_1_counts / Y_df.shape[0]
-
-    # Create a stacked bar chart
-    plt.figure(figsize=(12, 6))
-
-    # Stacked bars: class_0_percentages for the bottom part, and class_1_percentages on top
-    bar_width = 0.35  # Bar width
-    labels = Y_df.columns  # Labels (for the x-ticks)
+def plot_prediction_comparison(y_test, predicted, metric, title="Multi-label Prediction Comparison"):
+    """
+    Create visualization of prediction accuracy distribution.
     
-    plt.bar(labels, class_0_percentages, label='Class 0', width=bar_width, color='lightblue')
-    plt.bar(labels, class_1_percentages, bottom=class_0_percentages, label='Class 1', width=bar_width, color='orange')
+    Parameters:
+    y_test: array-like, true labels (n_samples, n_labels)
+    predicted: array-like, predicted labels (n_samples, n_labels)
+    metric: str, type of metric to visualize (currently supports "accuracy")
+    title: str, title for the plot
+    """
+    if not os.path.exists(f"{Y_PRED_PKL_OUTDIR}/pred_stats_{metric}_{title.replace(' ', '_')}.pkl") or not os.path.exists(f"{Y_PRED_OUTDIR}/{title.replace(' ', '_')}.png"):
+    
+        # Convert inputs to numpy arrays if they aren't already
+        y_test = np.array(y_test)
+        predicted = np.array(predicted)
+        
+        if metric == "accuracy":
+            # Calculate accuracy for each instance
+            matches = (y_test == predicted)
+            row_accuracies = np.mean(matches, axis=1)  # Mean across each row
+            
+            # Calculate statistics
+            avg_accuracy = np.mean(row_accuracies)
+            std_accuracy = np.std(row_accuracies)
+            
+            # Create histogram
+            plt.figure(figsize=(10, 6))
+            plt.hist(row_accuracies, bins=20, edgecolor='black')
+            plt.title(f"{title}\nMean Accuracy: {avg_accuracy:.3f} ± {std_accuracy:.3f}")
+            plt.xlabel("Instance Accuracy")
+            plt.ylabel("Frequency")
+            
+            # Add vertical line for mean
+            plt.axvline(avg_accuracy, color='red', linestyle='--', label=f'Mean = {avg_accuracy:.3f}')
+            
+            # Add vertical lines for ±1 std
+            plt.axvline(avg_accuracy + std_accuracy, color='green', linestyle=':', 
+                    label=f'+1 STD = {avg_accuracy + std_accuracy:.3f}')
+            plt.axvline(avg_accuracy - std_accuracy, color='green', linestyle=':', 
+                    label=f'-1 STD = {avg_accuracy - std_accuracy:.3f}')
+            
+            plt.legend()
+            
+            # Save statistics to file
+            big_nn_mc_stats_output_txt_path = f'{TXT_OUTDIR}/mc_nn_accuracy_f1_runtime_clustered_reduced_results.txt'
+            stats_filename = f"{TXT_OUTDIR}/pred_stats_{metric}_{title.replace(' ', '_')}.txt"
+            with open(stats_filename, 'w') as f:
+                f.write(f"Statistics for {title}\n")
+                f.write("-" * 50 + "\n")
+                f.write(f"Average {metric}: {avg_accuracy:.3f}\n")
+                f.write(f"Standard Deviation: {std_accuracy:.3f}\n")
+                f.write(f"Minimum {metric}: {np.min(row_accuracies):.3f}\n")
+                f.write(f"Maximum {metric}: {np.max(row_accuracies):.3f}\n")
+                f.write(f"Median {metric}: {np.median(row_accuracies):.3f}\n")
+                
+                # Add percentile information
+                percentiles = [25, 75, 90, 95, 99]
+                f.write("\nPercentiles:\n")
+                for p in percentiles:
+                    value = np.percentile(row_accuracies, p)
+                    f.write(f"{p}th percentile: {value:.3f}\n")
 
-    # Add labels, title, and legend
-    plt.xlabel('Labels', fontsize=12)
-    plt.ylabel('Percentage', fontsize=12)
-    plt.title('Class Distribution (0 vs 1) for Each Label (Stacked)', fontsize=14)
-    plt.legend(title='Class', loc='upper right')
+            # Calculate statistics
+            stats_data = {
+                'metric': metric,
+                'average': avg_accuracy,
+                'std': std_accuracy,
+                'min': np.min(row_accuracies),
+                'max': np.max(row_accuracies),
+                'median': np.median(row_accuracies),
+                'raw_metrics': row_accuracies,  # Including raw data in pkl
+                'percentiles': {},
+            }
+            
+            # Calculate percentiles
+            percentiles = [25, 75, 90, 95, 99]
+            for p in percentiles:
+                stats_data['percentiles'][p] = np.percentile(row_accuracies, p)
 
-    plt.xticks(ticks=np.arange(len(labels)), labels=labels, rotation=90)  # Rotate for better readability
-    # Ensure that the y-axis is scaled from 0 to 1
-    plt.ylim(0, 1)
+            stats_filename_pkl = f"{Y_PRED_PKL_OUTDIR}/pred_stats_{metric}_{title.replace(' ', '_')}.pkl"
+            with open(stats_filename_pkl, 'wb') as f:
+                pickle.dump(stats_data, f)
 
-    # Add the time to the graph
-    end_time = time.time()
+            
+            # plt.show()
+            plt.savefig(f"{Y_PRED_OUTDIR}/{title.replace(' ', '_')}.png")
+            plt.close()
+            
+            return avg_accuracy, std_accuracy
+        else:
+            raise ValueError(f"Metric '{metric}' not supported. Currently only 'accuracy' is supported.")
 
-    # Tight layout for better presentation
+import matplotlib.colors as mcolors
+
+
+def plot_merged_y_pred_data(merged_data):
+    # Prepare the data for plotting
+    x_labels = []  # X-axis labels for the parameters
+    averages = []  # Y-axis values for averages
+    std_devs = []  # Y-axis values for standard deviations
+
+    # Create lists for baseline entries and other entries
+    baseline_avg = []
+    baseline_std = []
+    other_avg = []
+    other_std = []
+    other_labels = []
+
+    for params, value in merged_data.items():
+        # Separate baseline cases
+        if params[2] == 'baseline':  # If it's a baseline
+            baseline_avg.append(value['average'])
+            baseline_std.append(value['std'])
+            x_labels.append('baseline')
+        else:
+            # Non-baseline cases
+            other_avg.append(value['average'])
+            other_std.append(value['std'])
+            other_labels.append(f"{params[0]} {params[1]}-{params[2]} {params[3]}")
+
+    # Combine the lists for baseline and other cases
+    all_avg = baseline_avg + other_avg
+    all_std = baseline_std + other_std
+    all_labels = x_labels + other_labels
+
+    # Sort the data by average (to show highest to lowest)
+    sorted_indices = np.argsort(all_avg)[::-1]  # Reverse to have highest first
+    all_avg_sorted = np.array(all_avg)[sorted_indices]
+    all_std_sorted = np.array(all_std)[sorted_indices]
+    all_labels_sorted = np.array(all_labels)[sorted_indices]
+
+    # Plotting
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Apply a colormap for the bars (gradient from low to high average)
+    norm = plt.Normalize(vmin=min(all_avg_sorted), vmax=max(all_avg_sorted))
+    cmap = plt.get_cmap('viridis')  # Choose your color map here
+    colors = [cmap(norm(val)) for val in all_avg_sorted]
+
+    # Plot bar chart for averages with sorted data and color gradient
+    bars = ax.barh(all_labels_sorted, all_avg_sorted, xerr=all_std_sorted, color=colors, align='center')
+
+    # Set labels and title
+    ax.set_xlabel('Values')
+    ax.set_title('Average and Std Deviation for Different Parameters')
+
+    # Set the limits for the x-axis to clip the lower end for better visibility
+    ax.set_xlim(left=min(all_avg_sorted) *.999, right=max(all_avg_sorted) *1.001)
+
+    # Add grid for better readability
+    ax.grid(axis='x', linestyle='--', alpha=0.01)
+    ax.grid(axis='y', linestyle='--', alpha=0.01)
+
+    # Add a colorbar to show the color gradient
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax)
+    cbar.set_label('Average Value')
+
+    # Add legend
+    ax.legend([f'Average {EVAL_FUNC_METRIC}'], loc='upper right')
+
+    # Show the plot
     plt.tight_layout()
-
-    # Save the plot
-    plt.savefig(outpath)
+    plt.savefig(f"{Y_PRED_OUTDIR}/aggregated_y_pred.png")
+    plt.savefig(f"{AGGREGATED_OUTDIR}/y_prediction_{EVAL_FUNC_METRIC}.png")
     plt.close()
-
-    print(f"Time to graph class imbalance (multi-label): {end_time - start_time:.4f}s")
-
-def graph_feature_heatmap_multilabel(X_df, Y_df, outpath):
-    start_time = time.time()
-    
-    plt.figure(figsize=(10, 8))
-    corr_matrix = np.corrcoef(X_df, rowvar=False)
-    sns.heatmap(corr_matrix, annot=False, cmap="coolwarm", square=True, cbar=True)
-    plt.title("Correlation Heatmap of Features in X")
-    
-    # Save the heatmap
-    plt.tight_layout()  # Adjust the layout to prevent clipping
-    plt.savefig(outpath)
-    plt.close()  # Close the figure
-
-    end_time = time.time()
-    print(f"Time to graph feature heatmap (multi-label): {end_time - start_time:.4f}s")

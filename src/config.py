@@ -15,9 +15,12 @@ def set_output_dir(outpath):
     os.makedirs(outpath, exist_ok=True)
     return outpath
 
-EVAL_FUNC_METRIC = 'auc' #'f1' # 'accuracy' #for random srx implementation
+EVAL_FUNC_METRIC = 'accuracy' #'f1' # 'accuracy' #for random srx implementation
 
 AGGREGATED_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/agregated_graphs')
+Y_PRED_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/y_pred_graphs')
+
+
 CLUSTER_PKL_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/pkl')
 DREDUCED_CLUSTER_PKL_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/pkl')
 Y_PRED_PKL_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/pkl_ypred')
@@ -34,8 +37,8 @@ OUTPUT_DIR_CLUSTERING_BASELINE_A3 = f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}/baseline
 ALL_DREDUCED_USEFULNESS_WITH_NN_PICKLE_PATH = f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/dreduced_pickles/nn_dreduced_all_results.pkl'
 
 K_FOLD_CV = 5  # Number of CV folds
-DREDUCE_NUM = 5
-
+DREDUCE_NUM = 3
+BIG_PICKLE_CHUNK_NUM = 5
 
 
 

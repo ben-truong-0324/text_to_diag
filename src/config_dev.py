@@ -30,13 +30,14 @@ OUTPUT_DIR_OPTIMIZE = f'../graphs'
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
 DRAFT_VER_A3 = 5
 
-CLUSTERING_MIN_K = 15
-CLUSTERING_MAX_K = 24  #data_plots.graph_cluster_count_per hardcoded for CLUSTERING_MAX_K > 40
+CLUSTERING_MIN_K = 18
+CLUSTERING_MAX_K = 20  #data_plots.graph_cluster_count_per hardcoded for CLUSTERING_MAX_K > 40
 
 CLUSTER_ALGORITHMS = [ 'kmeans', 
                         # 'gmm',
                         # 'dbscan',
                         # 'specclus','birch','meanshift','aggclus',
+                        
                         ]
 
 
@@ -72,7 +73,7 @@ MONTE_CARLO_NN_ITER = 5
 TRAIN_SIZE = .8
 TEST_SIZE = .2
 HIDDEN_NODES = [16,8]
-NN_MAX_EPOCH = 500
+NN_MAX_EPOCH = 20
 NN_PATIENCE = 1
 
 #DIM REDUCTION
@@ -80,8 +81,14 @@ DIMENSION_REDUCE_METHODS = ["PCA",
                         # "ICA",
                         # "RP",
                         #  "RCA",
-                #  "LDA", "RandomForest"
+                #  "LDA", "RandomForest",
+                # "NMF", "CUR",
                 ]
+
+# NMF: Useful for non-negative data like topic modeling, image processing, or audio signal decomposition.
+# SVD and PCA: Used for dimensionality reduction, feature extraction, and latent semantic analysis.
+# CUR: Applied when interpretable submatrices of the original matrix are needed, often in large, sparse datasets.
+# Tensor Decomposition: Useful for multi-way data (e.g., in recommendation systems, multi-dimensional time series).
 
 
 
@@ -90,7 +97,8 @@ PARAM_GRID = {
     'lr': [0.1, 0.01, 0.001, 0.005],
     'batch_size': [16, 32, 64],
     'hidden_layers': [[64, 32], [128, 64, 32], [64]],
-    'dropout_rate': [0.1, 0.3, 0.5]
+    'dropout_rate': [0.1, 0.3, 0.5],
+    # 'activation_function': just use relu
 }
 
 # Generate a random sample of 15 combinations from the grid
