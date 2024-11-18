@@ -960,12 +960,35 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, big_nn
 
         
 
-        big_nn_dataset = {}  # Initialize the dictionary to hold merged data
+ 
+
         for i, pkl_path in enumerate(big_nn_input_pkl_paths, start=1):
             print(f"Processing chunk {i}/{len(big_nn_input_pkl_paths)}: {pkl_path}")
-            with open(pkl_path, 'rb') as f:
-                chunk = pickle.load(f)
+
+            # Check if the file exists
+            if not os.path.exists(pkl_path):
+                print(f"Warning: File not found: {pkl_path}. Skipping this chunk.")
+                continue
+
+            try:
+                # Attempt to open and load the pickle file
+                with open(pkl_path, 'rb') as f:
+                    chunk = pickle.load(f)
+                    
+                # Validate the loaded chunk is a dictionary
+                if not isinstance(chunk, dict):
+                    print(f"Warning: Chunk {pkl_path} is not a valid dictionary. Skipping this chunk.")
+                    continue
+
+                # Merge the loaded chunk into the dataset
                 big_nn_dataset.update(chunk)
+                print(f"Successfully processed chunk {i}/{len(big_nn_input_pkl_paths)}: {len(chunk)} items added.")
+
+            except Exception as e:
+                # Handle any errors that occur during file reading/loading
+                print(f"Error processing chunk {i}/{len(big_nn_input_pkl_paths)} ({pkl_path}): {e}")
+
+        # Final summary
         print(f"Merged dataset contains {len(big_nn_dataset)} items.")
 
         try:
