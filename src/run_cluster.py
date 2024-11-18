@@ -958,9 +958,7 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, big_nn
         best_overall_method = None
         running_metrics_Xy_srx_space = None
 
-        
-
- 
+        big_nn_dataset = {}
 
         for i, pkl_path in enumerate(big_nn_input_pkl_paths, start=1):
             print(f"Processing chunk {i}/{len(big_nn_input_pkl_paths)}: {pkl_path}")
