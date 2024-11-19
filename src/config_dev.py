@@ -30,8 +30,8 @@ OUTPUT_DIR_OPTIMIZE = f'../graphs'
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
 DRAFT_VER_A3 = 6
 
-CLUSTERING_MIN_K = 18
-CLUSTERING_MAX_K = 20  #data_plots.graph_cluster_count_per hardcoded for CLUSTERING_MAX_K > 40
+CLUSTERING_MIN_K = 19
+CLUSTERING_MAX_K = 19  #data_plots.graph_cluster_count_per hardcoded for CLUSTERING_MAX_K > 40
 
 CLUSTER_ALGORITHMS = [ 'kmeans', 
                         # 'gmm',
@@ -94,7 +94,7 @@ DIMENSION_REDUCE_METHODS = ["PCA",
 
 # Define ranges for hyperparameters
 PARAM_GRID = {
-    'lr': [0.1, 0.01, 0.001, 0.005],
+    'lr': [0.01, 0.005, 0.0005],
     'batch_size': [16, 32, 64],
     # 'hidden_layers': [[64, 32], [128, 64, 32], [64]],
     'hidden_layers': [[75,19]],
