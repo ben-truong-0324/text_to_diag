@@ -96,8 +96,8 @@ DIMENSION_REDUCE_METHODS = ["PCA",
 PARAM_GRID = {
     'lr': [0.01, 0.005, 0.0005],
     'batch_size': [16, 32, 64],
-    # 'hidden_layers': [[64, 32], [128, 64, 32], [64]],
-    'hidden_layers': [[75,19]],
+    'hidden_layers': [[64, 32], [128, 64, 32], [64]],
+    # 'hidden_layers': [[75,19]],
     'dropout_rate': [0, 0.1, 0.05, 0.3],
     # 'activation_function': just use relu
 }
