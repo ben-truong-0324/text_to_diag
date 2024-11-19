@@ -485,7 +485,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             if model == "default":
                 current_params = random.choice(RANDOM_SRX_PARAMS)
             else:
-                current_params = random.choice(FARSIGHT_PARAM_GRID)
+                current_params = random.choice(FARSIGHT_SRX_PARAMS)
 
         current_metrics_of_Xy = []
         inner_cv_running_best_metric = 0
@@ -552,6 +552,10 @@ def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
     if not os.path.exists(nn_pkl_path) or not os.path.exists(cv_losses_outpath):
         X = pd.DataFrame(X)  # Assuming X_train is a DataFrame
         X_features = torch.FloatTensor(X.values).to(device)
+        best_overall_model = None
+        best_overall_method = None
+        best_overall_metric = 0
+        best_overall_cv_losses = None
         nn_results={}
         try:
             if len(y.shape) > 1 and y.shape[1] > 1:
