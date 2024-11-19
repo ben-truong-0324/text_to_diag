@@ -67,6 +67,7 @@ def purity_score(y_true, y_pred):
     return np.sum(np.amax(contingency_matrix, axis=0)) / np.sum(contingency_matrix)
 
 
+
 class SimpleNN(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_layers=[64, 32], dropout_rate=0.5):
         super(SimpleNN, self).__init__()
@@ -88,6 +89,24 @@ class SimpleNN(nn.Module):
         
         return self.layers[-1](x)  # No activation or dropout on the output layer
 
+
+class FarsightMPL(nn.Module):
+    def __init__(self, input_dim, output_dim, dropout_rate=0.5):
+        super(SimpleNN, self).__init__()
+        self.dropout_rate = dropout_rate
+        self.layers = nn.Sequential(
+            nn.Linear(input_dim, 75),       # Input to first hidden layer
+            nn.ReLU(),                     # Activation function
+            nn.Dropout(dropout_rate),      # Dropout after first hidden layer
+            nn.Linear(75, 19),             # First hidden layer to second hidden layer
+            nn.ReLU(),                     # Activation function
+            nn.Dropout(dropout_rate),      # Dropout after second hidden layer
+            nn.Linear(19, output_dim),     # Second hidden layer to output layer
+            nn.Sigmoid()                   # Sigmoid activation for output
+        )
+
+    def forward(self, x):
+        return self.layers(x)
 
 def evaluate_model(model, X_val, y_val, device,criterion):
     model.eval()
@@ -138,7 +157,9 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
     else:
         # Single-label classification (y_train has a single label per instance)
         output_dim = len(np.unique(y_train.cpu())) 
-    model = SimpleNN(input_dim, output_dim, hidden_layers, dropout_rate=dropout_rate).to(device)
+    # model = SimpleNN(input_dim, output_dim, hidden_layers, dropout_rate=dropout_rate).to(device)
+    model = FarsightMPL(input_dim, output_dim, dropout_rate.to(device))
+
 
 
 

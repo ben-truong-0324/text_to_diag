@@ -27,10 +27,10 @@ OUTPUT_DIR_OPTIMIZE = f'../graphs'
 # OPT_DRAFT_VER = 0
 
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-DRAFT_VER_A3 = 3
+DRAFT_VER_A3 = 4
 
-CLUSTERING_MIN_K = 14
-CLUSTERING_MAX_K = 24 
+CLUSTERING_MIN_K = 17
+CLUSTERING_MAX_K = 20 
 
 CLUSTER_ALGORITHMS = [ 'kmeans',
 #  'gmm',
@@ -86,9 +86,10 @@ DIMENSION_REDUCE_METHODS = ["PCA", "ICA",
 PARAM_GRID = {
     'lr': [0.1, 0.01, 0.001, 0.005],
     'batch_size': [16, 32, 64],
-    'hidden_layers': [[64, 32], [128, 64, 32], [64]],
-    'dropout_rate': [0.1, 0.3, 0.5]
+    # 'hidden_layers': [[64, 32], [128, 64, 32], [64]],
+    'hidden_layers': [[75,19]],
+    'dropout_rate': [0.05, 0.1, 0.3],
+    # 'activation_function': just use relu
 }
-
 # Generate a random sample of 15 combinations from the grid
 RANDOM_SRX_PARAMS = list(ParameterSampler(PARAM_GRID, n_iter=RANDOM_OPTIMIZATION_ITERATION_COUNT, random_state=GT_ID))
