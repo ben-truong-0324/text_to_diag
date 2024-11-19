@@ -16,7 +16,9 @@ def set_output_dir(outpath):
     return outpath
 
 EVAL_FUNC_METRIC = 'accuracy' #'f1' # 'accuracy' #for random srx implementation
-
+FARSIGHT_MODELS = ['MPL','CNN', 'LSTM', 'bi-LSTM', 'conv-LSTM', 
+                     #'seg-gru',
+                    ]
 AGGREGATED_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/agregated_graphs')
 Y_PRED_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/y_pred_graphs')
 
@@ -24,6 +26,9 @@ Y_PRED_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_ME
 CLUSTER_PKL_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/pkl')
 DREDUCED_CLUSTER_PKL_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/pkl')
 Y_PRED_PKL_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/pkl_ypred')
+CV_LOSSES_PKL_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/pkl_cv')
+NN_PKL_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/pkl_nn')
+
 
 NN_CLUSTERED_DREDUCED_PKL_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/cluster_of_reduced')
 CLUSTER_GRAPH_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/cluster')

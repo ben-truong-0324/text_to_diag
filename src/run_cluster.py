@@ -104,6 +104,91 @@ class FarsightMPL(nn.Module):
     def forward(self, x):
         return self.layers(x)
 
+class FarsightCNN(nn.Module):
+    def __init__(self, input_dim, output_dim, hidden_dim=289, feature_maps=19, dropout_rate=0.5):
+        super(FarsightCNN, self).__init__()
+        
+        self.dropout_rate = dropout_rate
+        # Fully connected layer: input to hidden_dim (default: 289)
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        # Convolutional layer: 3x3 kernel, feature_maps (default: 19),
+        self.conv = nn.Conv2d(in_channels=1, out_channels=feature_maps, kernel_size=3, stride=1, padding=0)
+        #  change 289 1d into 17x17 2d, after stride 1 3x3 becomes 15x15
+        self.fc2 = nn.Linear(feature_maps * 15 * 15, output_dim)
+        self.dropout = nn.Dropout(dropout_rate)
+        self.sigmoid = nn.Sigmoid()
+    
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = x.view(x.size(0), 1, 17, 17)  # Reshape based on fc1 output (1 channel, 17x17 grid)
+        x = torch.relu(self.conv(x))
+        x = x.view(x.size(0), -1)
+        x = self.fc2(x)
+        x = self.sigmoid(x)
+        return x
+    
+class FarsightLSTM(nn.Module):
+    def __init__(self, input_dim, output_dim, hidden_dim=289, lstm_hidden_dim=300, dropout_rate=0.1):
+        super(FarsightLSTM, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.lstm = nn.LSTM(hidden_dim, lstm_hidden_dim, batch_first=True)
+        self.fc2 = nn.Linear(lstm_hidden_dim, output_dim)
+        self.dropout = nn.Dropout(dropout_rate)
+        self.sigmoid = nn.Sigmoid()
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.dropout(x)
+        lstm_out, _ = self.lstm(x)
+        x = self.fc2(lstm_out[:, -1, :])  # Get the last hidden state
+        x = self.sigmoid(x)
+        return x
+    
+class FarsightBiLSTM(nn.Module):
+    def __init__(self, input_dim, output_dim, hidden_dim=289, lstm_hidden_dim=150, dropout_rate=0.5):
+        super(FarsightBiLSTM, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.lstm1 = nn.LSTM(hidden_dim, lstm_hidden_dim, batch_first=True, bidirectional=True)
+        self.lstm2 = nn.LSTM(lstm_hidden_dim * 2, lstm_hidden_dim, batch_first=True, bidirectional=True)
+        self.fc2 = nn.Linear(lstm_hidden_dim * 2, output_dim)
+        self.dropout = nn.Dropout(dropout_rate)
+        self.sigmoid = nn.Sigmoid()
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.dropout(x)
+        lstm_out, _ = self.lstm1(x)
+        lstm_out, _ = self.lstm2(lstm_out)
+        x = self.fc2(lstm_out[:, -1, :])  # Get the last hidden state
+        x = self.sigmoid(x)
+        return x
+
+
+class FarsightConvLSTM(nn.Module):
+    def __init__(self, input_dim, output_dim, hidden_dim=289, feature_maps=19, lstm_hidden_dim=300, dropout_rate=0.5):
+        super(FarsightConvLSTM, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.conv = nn.Conv2d(in_channels=1, out_channels=feature_maps, kernel_size=3, stride=1, padding=0)
+        self.fc2 = nn.Linear(feature_maps * 15 * 15, hidden_dim)
+        self.lstm = nn.LSTM(hidden_dim, lstm_hidden_dim, batch_first=True)
+        self.fc3 = nn.Linear(lstm_hidden_dim, output_dim)
+        self.dropout = nn.Dropout(dropout_rate)        
+        self.sigmoid = nn.Sigmoid()
+    
+    def forward(self, x):
+        # Fully connected layer with ReLU activation
+        x = torch.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = x.view(x.size(0), 1, 17, 17)  # Assuming 17x17 grid
+        x = torch.relu(self.conv(x))
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc2(x))
+        x = self.dropout(x)
+        lstm_out, _ = self.lstm(x.unsqueeze(1))  # Add time dimension
+        x = self.fc3(lstm_out[:, -1, :])  # Get the last hidden state
+        x = self.sigmoid(x)
+        return x
+
+
 def evaluate_model(model, X_val, y_val, device,criterion):
     model.eval()
     with torch.no_grad():
@@ -141,7 +226,7 @@ def optimize_threshold(test_outputs_np, y_test_np):
     
     return best_threshold, best_accuracy
 
-def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, params, max_epochs=NN_MAX_EPOCH, patience=NN_PATIENCE):
+def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, params, max_epochs=NN_MAX_EPOCH, patience=NN_PATIENCE, model="default"):
     lr = params['lr']
     batch_size = params['batch_size']
     hidden_layers = params['hidden_layers']
@@ -153,7 +238,24 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
     else:
         # Single-label classification (y_train has a single label per instance)
         output_dim = len(np.unique(y_train.cpu())) 
-    model = SimpleNN(input_dim, output_dim, hidden_layers, dropout_rate=dropout_rate).to(device)
+    if model == "default":
+        model = SimpleNN(input_dim, output_dim, hidden_layers, dropout_rate=dropout_rate).to(device)
+    elif model == "MPL":
+        model = FarsightMPL(input_dim=input_dim, output_dim=output_dim).to(device)
+    elif model == "CNN":
+        model = FarsightCNN(input_dim=input_dim, output_dim=output_dim,hidden_dim=289, feature_maps=19, dropout_rate=params['dropout_rate']).to(device)
+
+    elif model == "LSTM":
+        model = FarsightLSTM(input_dim=input_dim, output_dim=output_dim,hidden_dim=289, lstm_hidden_dim=300, dropout_rate=params['dropout_rate']).to(device)
+
+    elif model == "bi-LSTM":
+        model = FarsightBiLSTM(input_dim=input_dim, output_dim=output_dim,  hidden_dim=289, lstm_hidden_dim=150, dropout_rate=params['dropout_rate']).to(device)
+
+    elif model == "conv-LSTM":
+        model = FarsightConvLSTM(input_dim=input_dim, output_dim=output_dim,  hidden_dim=289, feature_maps=19, lstm_hidden_dim=300, dropout_rate=params['dropout_rate']).to(device)
+
+    else:
+        raise ValueError(f"Unsupported model type: {model}")
     # model = FarsightMPL(input_dim, output_dim, dropout_rate).to(device)
 
 
@@ -178,7 +280,6 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
     print("Starting training loop...")
 
     for epoch in range(max_epochs):
-        print(epoch)
         epoch_trained+=1
         model.train()
 
@@ -205,7 +306,7 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
         if epochs_without_improvement >= patience:
             break
     runtime = time.time() - start_time
-    print(f"Training completed in {runtime // 60:.0f}m {runtime % 60:.0f}s")
+    print(f"Model {model} Training completed in {runtime // 60:.0f}m {runtime % 60:.0f}s")
 
     # Evaluate the model
     model.eval()
@@ -329,7 +430,7 @@ def collect_cluster_results(X, y, cluster_algo, preprocessing_tag = ""):
 
 
 
-def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_overall_metric, best_overall_method, best_overall_model, best_overall_cv_losses, type_tag = ""):
+def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_overall_metric, best_overall_method, best_overall_model, best_overall_cv_losses, type_tag = "",model = "default"):
     """
     Generalized helper method to run random optimization algorithms.
     
@@ -381,7 +482,10 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             print(f"SA: Best Params: {best_params}, Best Score: {best_score}")
 
         elif random_opt_algo == "default":  #
-            current_params = random.choice(RANDOM_SRX_PARAMS)
+            if model == "default":
+                current_params = random.choice(RANDOM_SRX_PARAMS)
+            else:
+                current_params = random.choice(FARSIGHT_PARAM_GRID)
 
         current_metrics_of_Xy = []
         inner_cv_running_best_metric = 0
@@ -396,7 +500,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             
             # Train and evaluate model with current parameters
             accuracy, f1,auc_roc, runtime,temp_model,epoch_losses,y_test,predicted = train_nn_with_early_stopping_with_param(
-                X_train, y_train, X_val, y_val, current_params
+                X_train, y_train, X_val, y_val, current_params, model,
             )
             
             # Store the current metrics
@@ -444,7 +548,52 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             
     return final_best_metric, final_best_model, final_best_method, running_best_metrics_of_Xy_srx_space, final_best_overall_cv_losses, running_best_y_preds
 
-
+def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
+    if not os.path.exists(nn_pkl_path) or not os.path.exists(cv_losses_outpath):
+        X = pd.DataFrame(X)  # Assuming X_train is a DataFrame
+        X_features = torch.FloatTensor(X.values).to(device)
+        nn_results={}
+        try:
+            if len(y.shape) > 1 and y.shape[1] > 1:
+                # Multi-label case: use FloatTensor for multi-hot encoded labels
+                try:
+                    y_labels = torch.FloatTensor(y).to(device)
+                except:
+                    y_labels = torch.FloatTensor(y.values).to(device)
+            else:
+                try:
+                    y_labels = torch.LongTensor(y).to(device)
+                except:
+                    y_labels = torch.LongTensor(y.values).to(device)
+        except AttributeError:
+            # If y is a Pandas DataFrame or Series, convert to NumPy first
+            y_values = y.values if hasattr(y, 'values') else y
+            if len(y_values.shape) > 1 and y_values.shape[1] > 1:
+                y_labels = torch.FloatTensor(y_values).to(device)
+            else:
+                y_labels = torch.LongTensor(y_values).to(device)
+        ###################################
+        for model in FARSIGHT_MODELS:
+            best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space, \
+                best_overall_cv_losses,running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
+                    X_features, 
+                    y_labels, 
+                    do_cv=True, 
+                    random_opt_algo="default", 
+                    best_overall_metric=best_overall_metric,  # Keyword argument
+                    best_overall_method=best_overall_method,    # Keyword argument
+                    best_overall_model=best_overall_model,    # Keyword argument
+                    best_overall_cv_losses = best_overall_cv_losses,
+                    type_tag=f"farsight_{model}",             # Keyword argument,
+                    model = model,
+                )
+            nn_results[model] = {'mc_results': running_metrics_Xy_srx_space}
+            with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_{model}.pkl', 'wb') as f:
+                pickle.dump(running_best_y_preds,f)
+        with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_farsight.pkl', 'wb') as f:
+            pickle.dump(running_best_y_preds,f)
+        
+    pass
 
 def get_cluster_usefulness_with_nn(results, X,y,cluster_algo,outpath,cv_losses_outpath):
     if not os.path.exists(outpath):
@@ -496,7 +645,8 @@ def get_cluster_usefulness_with_nn(results, X,y,cluster_algo,outpath,cv_losses_o
                 best_overall_method=best_overall_method,    # Keyword argument
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
-                type_tag=f"{n_clusters}_c"             # Keyword argument
+                type_tag=f"{n_clusters}_c",             # Keyword argument
+                model = "default",
             )
             nn_results[n_clusters] = {'mc_results': running_metrics_Xy_srx_space}
             with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_{cluster_algo}_{n_clusters}.pkl', 'wb') as f:
@@ -517,7 +667,8 @@ def get_cluster_usefulness_with_nn(results, X,y,cluster_algo,outpath,cv_losses_o
             best_overall_method=best_overall_method,    # Keyword argument
             best_overall_model=best_overall_model,    # Keyword argument
             best_overall_cv_losses = best_overall_cv_losses,
-            type_tag=f"baseline"             # Keyword argument
+            type_tag=f"baseline",             # Keyword argument
+            model = "default",
         )
         with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_cluster_baseline.pkl', 'wb') as f:
             pickle.dump(running_best_y_preds,f)
@@ -724,7 +875,8 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
                         best_overall_method=best_overall_method,    # Keyword argument
                         best_overall_model=best_overall_model,    # Keyword argument
                         best_overall_cv_losses = best_overall_cv_losses,
-                        type_tag=f"{method}_{k_dimension}"             # Keyword argument
+                        type_tag=f"{method}_{k_dimension}",             # Keyword argument
+                        model = "default",
                     )
                     nn_dreduced[f"{method}_{k_dimension}"] = { 'mc_results': running_metrics_Xy_srx_space}
                     with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_dred_{method}_{k_dimension}.pkl', 'wb') as f:
@@ -750,7 +902,8 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
                 best_overall_method=best_overall_method,    # Keyword argument
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
-                type_tag=f"baseline"             # Keyword argument
+                type_tag=f"baseline",             # Keyword argument
+                model = "default",
                 )
         nn_dreduced["baseline"] = {'mc_results': running_metrics_Xy_srx_space}
         with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_dred_baseline.pkl', 'wb') as f:
@@ -1038,7 +1191,8 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, big_nn
                 best_overall_method=best_overall_method,    # Keyword argument
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
-                type_tag=f"baseline"             # Keyword argument
+                type_tag=f"baseline",             # Keyword argument
+                model = "default",
                 )
         nn_clustered_dreduced["baseline"] = {'mc_results': running_metrics_Xy_srx_space}
         with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_cludred_baseline.pkl', 'wb') as f:
@@ -1061,6 +1215,7 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, big_nn
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
                 type_tag=f"{dreduc_algo}_{k_dim}k_{cluster_algo}_{n_clusters}c",            # Keyword argument
+                model = "default",
                 )
             nn_clustered_dreduced[(dreduc_algo, k_dim, cluster_algo, n_clusters)] = {
                 'mc_results': running_metrics_Xy_srx_space }
@@ -1085,6 +1240,8 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, big_nn
             for config, score in nn_clustered_dreduced.items():
                 f.write(f"{config}: {score}\n")
         print(f'NN results saved to: {big_nn_output_txt_path}')
+
+
 
 def implement_clustering_on_reduced_features(X,y):
     all_dreduced_usefulness_with_nn_pickle_path = ALL_DREDUCED_USEFULNESS_WITH_NN_PICKLE_PATH
@@ -1172,6 +1329,29 @@ def implement_clustering_on_reduced_features(X,y):
     get_p_value_if_monte_carlo_within_5_perc(clustered_reduced_results, big_nn_mc_stats_output_txt_path,
     big_nn_mc_stats_output_pkl_path,)
 
+
+
+def implement_farsight(X,y):
+
+    #############RUNNING NN
+    print("PyTorch mps availability check: ",torch.backends.mps.is_available())
+    print("PyTorch cuda availability check: ",torch.cuda.is_available())
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    #to test for results using torch with cpu, run a differnt DRAFT_VER_A3
+    nn_pkl_path = f'{NN_PKL_OUTDIR}/nn_results.pkl'
+    cv_losses_outpath = f'{CV_LOSSES_PKL_OUTDIR}/cv_losses.pkl'
+    get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath)
+    with open(nn_pkl_path, 'rb') as f:
+        nn_results = pickle.load(f)
+    
+    # data_plots.plot_cluster_usefulness_by_nn_banded_mean(cluster_nn_usefulness_results, 
+    #     f'{AGGREGATED_OUTDIR}/{CLUSTERING_MAX_K}_{cluster_algo}_usefulness_nn.png',)
+    # for thres in np.arange(.001,.1,.001):
+    #         hypotheses.run_dred_improves_purity_score_hypo_test(purity_scores, thres) 
 
    
 def load_and_predict(model_path, X_test):
@@ -1450,9 +1630,11 @@ def main():
     #add expedient training size minimum needed to plateau 
 
     #model_tuning = 1,     
-    implement_clustering(X, y)
-    implement_dimension_reduction(X,y)
-    implement_clustering_on_reduced_features(X,y)
+    # implement_clustering(X, y)
+    # implement_dimension_reduction(X,y)
+    # implement_clustering_on_reduced_features(X,y)
+
+    implement_farsight(X, y)
 
     y_pred_check()
 
