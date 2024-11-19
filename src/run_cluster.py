@@ -226,7 +226,7 @@ def optimize_threshold(test_outputs_np, y_test_np):
     
     return best_threshold, best_accuracy
 
-def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, params, max_epochs, patience, model="default"):
+def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, params, max_epochs, patience, model_name="default"):
     lr = params['lr']
     batch_size = params['batch_size']
     hidden_layers = params['hidden_layers']
@@ -238,24 +238,24 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
     else:
         # Single-label classification (y_train has a single label per instance)
         output_dim = len(np.unique(y_train.cpu())) 
-    if model == "default":
+    if model_name == "default":
         model = SimpleNN(input_dim, output_dim, hidden_layers, dropout_rate=dropout_rate).to(device)
-    elif model == "MPL":
+    elif model_name == "MPL":
         model = FarsightMPL(input_dim=input_dim, output_dim=output_dim).to(device)
-    elif model == "CNN":
+    elif model_name == "CNN":
         model = FarsightCNN(input_dim=input_dim, output_dim=output_dim,hidden_dim=289, feature_maps=19, dropout_rate=params['dropout_rate']).to(device)
 
-    elif model == "LSTM":
+    elif model_name == "LSTM":
         model = FarsightLSTM(input_dim=input_dim, output_dim=output_dim,hidden_dim=289, lstm_hidden_dim=300, dropout_rate=params['dropout_rate']).to(device)
 
-    elif model == "bi-LSTM":
+    elif model_name == "bi-LSTM":
         model = FarsightBiLSTM(input_dim=input_dim, output_dim=output_dim,  hidden_dim=289, lstm_hidden_dim=150, dropout_rate=params['dropout_rate']).to(device)
 
-    elif model == "conv-LSTM":
+    elif model_name == "conv-LSTM":
         model = FarsightConvLSTM(input_dim=input_dim, output_dim=output_dim,  hidden_dim=289, feature_maps=19, lstm_hidden_dim=300, dropout_rate=params['dropout_rate']).to(device)
 
     else:
-        raise ValueError(f"Unsupported model type: {model}")
+        raise ValueError(f"Unsupported model type: {model_name}")
     # model = FarsightMPL(input_dim, output_dim, dropout_rate).to(device)
 
 
@@ -278,7 +278,6 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
     epoch_losses = []
     start_time = time.time()
     print("Starting training loop...")
-    print(max_epochs)
     for epoch in range(max_epochs):
         epoch_trained+=1
         model.train()
@@ -306,7 +305,8 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
         if epochs_without_improvement >= patience:
             break
     runtime = time.time() - start_time
-    print(f"Model {model} Training completed in {runtime // 60:.0f}m {runtime % 60:.0f}s")
+    print(model)
+    print(f"Model {model_name} Training completed in {runtime // 60:.0f}m {runtime % 60:.0f}s\n")
 
     # Evaluate the model
     model.eval()
@@ -430,7 +430,7 @@ def collect_cluster_results(X, y, cluster_algo, preprocessing_tag = ""):
 
 
 
-def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_overall_metric, best_overall_method, best_overall_model, best_overall_cv_losses, type_tag = "",model = "default"):
+def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_overall_metric, best_overall_method, best_overall_model, best_overall_cv_losses, type_tag = "",model_name = "default"):
     """
     Generalized helper method to run random optimization algorithms.
     
@@ -482,7 +482,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             print(f"SA: Best Params: {best_params}, Best Score: {best_score}")
 
         elif random_opt_algo == "default":  #
-            if model == "default":
+            if model_name == "default":
                 current_params = random.choice(RANDOM_SRX_PARAMS)
             else:
                 current_params = random.choice(FARSIGHT_SRX_PARAMS)
@@ -500,7 +500,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             
             # Train and evaluate model with current parameters
             accuracy, f1,auc_roc, runtime,temp_model,epoch_losses,y_test,predicted = train_nn_with_early_stopping_with_param(
-                X_train, y_train, X_val, y_val, current_params,NN_MAX_EPOCH, NN_PATIENCE, model,
+                X_train, y_train, X_val, y_val, current_params,NN_MAX_EPOCH, NN_PATIENCE, model_name,
             )
             
             # Store the current metrics
@@ -650,7 +650,7 @@ def get_cluster_usefulness_with_nn(results, X,y,cluster_algo,outpath,cv_losses_o
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
                 type_tag=f"{n_clusters}_c",             # Keyword argument
-                model = "default",
+                model_name = "default",,
             )
             nn_results[n_clusters] = {'mc_results': running_metrics_Xy_srx_space}
             with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_{cluster_algo}_{n_clusters}.pkl', 'wb') as f:
@@ -672,7 +672,7 @@ def get_cluster_usefulness_with_nn(results, X,y,cluster_algo,outpath,cv_losses_o
             best_overall_model=best_overall_model,    # Keyword argument
             best_overall_cv_losses = best_overall_cv_losses,
             type_tag=f"baseline",             # Keyword argument
-            model = "default",
+            model_name = "default",,
         )
         with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_cluster_baseline.pkl', 'wb') as f:
             pickle.dump(running_best_y_preds,f)
@@ -880,7 +880,7 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
                         best_overall_model=best_overall_model,    # Keyword argument
                         best_overall_cv_losses = best_overall_cv_losses,
                         type_tag=f"{method}_{k_dimension}",             # Keyword argument
-                        model = "default",
+                        model_name = "default",,
                     )
                     nn_dreduced[f"{method}_{k_dimension}"] = { 'mc_results': running_metrics_Xy_srx_space}
                     with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_dred_{method}_{k_dimension}.pkl', 'wb') as f:
@@ -907,7 +907,7 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
                 type_tag=f"baseline",             # Keyword argument
-                model = "default",
+                model_name = "default",,
                 )
         nn_dreduced["baseline"] = {'mc_results': running_metrics_Xy_srx_space}
         with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_dred_baseline.pkl', 'wb') as f:
@@ -1196,7 +1196,7 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, big_nn
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
                 type_tag=f"baseline",             # Keyword argument
-                model = "default",
+                model_name = "default",,
                 )
         nn_clustered_dreduced["baseline"] = {'mc_results': running_metrics_Xy_srx_space}
         with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_cludred_baseline.pkl', 'wb') as f:
@@ -1219,7 +1219,7 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, big_nn
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
                 type_tag=f"{dreduc_algo}_{k_dim}k_{cluster_algo}_{n_clusters}c",            # Keyword argument
-                model = "default",
+                model_name = "default",,
                 )
             nn_clustered_dreduced[(dreduc_algo, k_dim, cluster_algo, n_clusters)] = {
                 'mc_results': running_metrics_Xy_srx_space }
