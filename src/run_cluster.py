@@ -92,7 +92,7 @@ class SimpleNN(nn.Module):
 
 class FarsightMPL(nn.Module):
     def __init__(self, input_dim, output_dim, dropout_rate=0.5):
-        super(SimpleNN, self).__init__()
+        super(FarsightMPL, self).__init__()
         self.dropout_rate = dropout_rate
         self.layers = nn.Sequential(
             nn.Linear(input_dim, 75),       # Input to first hidden layer
