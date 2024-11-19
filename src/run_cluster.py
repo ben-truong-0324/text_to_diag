@@ -589,7 +589,7 @@ def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
                     best_overall_model=best_overall_model,    # Keyword argument
                     best_overall_cv_losses = best_overall_cv_losses,
                     type_tag=f"farsight_{model}",             # Keyword argument,
-                    model = model,
+                    model_name = model,
                 )
             nn_results[model] = {'mc_results': running_metrics_Xy_srx_space}
             with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_{model}.pkl', 'wb') as f:
