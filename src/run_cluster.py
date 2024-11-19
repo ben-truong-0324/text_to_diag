@@ -1643,8 +1643,8 @@ def main():
 
 
 if __name__ == "__main__":
-    print("PyTorch mps availability check: ",torch.backends.mps.is_available())
-    print("PyTorch cuda availability check: ",torch.cuda.is_available())
+    print("PyTorch mps check: ",torch.backends.mps.is_available())
+    print("PyTorch cuda check: ",torch.cuda.is_available())
     if torch.backends.mps.is_available():
         device = torch.device("mps")
     else:
