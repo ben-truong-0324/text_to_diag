@@ -27,10 +27,10 @@ OUTPUT_DIR_OPTIMIZE = f'../graphs'
 # OPT_DRAFT_VER = 0
 
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-DRAFT_VER_A3 = 5
+DRAFT_VER_A3 = 6
 
-CLUSTERING_MIN_K = 100
-CLUSTERING_MAX_K = 101
+CLUSTERING_MIN_K = 99
+CLUSTERING_MAX_K = 100
 
 CLUSTER_ALGORITHMS = [ 'kmeans',
 #  'gmm',
@@ -84,12 +84,13 @@ DIMENSION_REDUCE_METHODS = ["PCA", "ICA",
 
 # Define ranges for hyperparameters
 
+# Define ranges for hyperparameters
 PARAM_GRID = {
     'lr': [0.01, 0.005, 0.0005],
     'batch_size': [16, 32, 64],
     # 'hidden_layers': [[64, 32], [128, 64, 32], [64]],
     'hidden_layers': [[75,19]],
-    'dropout_rate': [0.1, 0.3, 0.5],
+    'dropout_rate': [0, 0.1, 0.05, 0.3],
     # 'activation_function': just use relu
 }
 # Generate a random sample of 15 combinations from the grid

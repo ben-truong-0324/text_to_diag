@@ -28,10 +28,10 @@ OUTPUT_DIR_OPTIMIZE = f'../graphs'
 # OPT_DRAFT_VER = 0
 
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-DRAFT_VER_A3 = 7
+DRAFT_VER_A3 = 8
 
-CLUSTERING_MIN_K = 19
-CLUSTERING_MAX_K = 20  
+CLUSTERING_MIN_K = 18
+CLUSTERING_MAX_K = 19
 
 CLUSTER_ALGORITHMS = [ 'kmeans', 
                         # 'gmm',
@@ -98,7 +98,7 @@ PARAM_GRID = {
     'batch_size': [16, 32, 64],
     # 'hidden_layers': [[64, 32], [128, 64, 32], [64]],
     'hidden_layers': [[75,19]],
-    'dropout_rate': [0.1, 0.3, 0.5],
+    'dropout_rate': [0, 0.1, 0.05, 0.3],
     # 'activation_function': just use relu
 }
 
