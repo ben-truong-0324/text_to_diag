@@ -650,7 +650,7 @@ def get_cluster_usefulness_with_nn(results, X,y,cluster_algo,outpath,cv_losses_o
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
                 type_tag=f"{n_clusters}_c",             # Keyword argument
-                model_name = "default",,
+                model_name = "default",
             )
             nn_results[n_clusters] = {'mc_results': running_metrics_Xy_srx_space}
             with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_{cluster_algo}_{n_clusters}.pkl', 'wb') as f:
@@ -672,7 +672,7 @@ def get_cluster_usefulness_with_nn(results, X,y,cluster_algo,outpath,cv_losses_o
             best_overall_model=best_overall_model,    # Keyword argument
             best_overall_cv_losses = best_overall_cv_losses,
             type_tag=f"baseline",             # Keyword argument
-            model_name = "default",,
+            model_name = "default",
         )
         with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_cluster_baseline.pkl', 'wb') as f:
             pickle.dump(running_best_y_preds,f)
@@ -880,7 +880,7 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
                         best_overall_model=best_overall_model,    # Keyword argument
                         best_overall_cv_losses = best_overall_cv_losses,
                         type_tag=f"{method}_{k_dimension}",             # Keyword argument
-                        model_name = "default",,
+                        model_name = "default",
                     )
                     nn_dreduced[f"{method}_{k_dimension}"] = { 'mc_results': running_metrics_Xy_srx_space}
                     with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_dred_{method}_{k_dimension}.pkl', 'wb') as f:
@@ -907,7 +907,7 @@ def get_dreduced_usefulness_with_nn(X, y, max_k_dimension,pickle_outpath,cv_loss
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
                 type_tag=f"baseline",             # Keyword argument
-                model_name = "default",,
+                model_name = "default",
                 )
         nn_dreduced["baseline"] = {'mc_results': running_metrics_Xy_srx_space}
         with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_dred_baseline.pkl', 'wb') as f:
@@ -1196,7 +1196,7 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, big_nn
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
                 type_tag=f"baseline",             # Keyword argument
-                model_name = "default",,
+                model_name = "default",
                 )
         nn_clustered_dreduced["baseline"] = {'mc_results': running_metrics_Xy_srx_space}
         with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_cludred_baseline.pkl', 'wb') as f:
@@ -1219,7 +1219,7 @@ def get_clustered_reduced_usefulness_with_nn(big_nn_input_pkl_paths,X, y, big_nn
                 best_overall_model=best_overall_model,    # Keyword argument
                 best_overall_cv_losses = best_overall_cv_losses,
                 type_tag=f"{dreduc_algo}_{k_dim}k_{cluster_algo}_{n_clusters}c",            # Keyword argument
-                model_name = "default",,
+                model_name = "default",
                 )
             nn_clustered_dreduced[(dreduc_algo, k_dim, cluster_algo, n_clusters)] = {
                 'mc_results': running_metrics_Xy_srx_space }
