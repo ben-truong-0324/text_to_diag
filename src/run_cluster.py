@@ -158,7 +158,7 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
         # Single-label classification (y_train has a single label per instance)
         output_dim = len(np.unique(y_train.cpu())) 
     # model = SimpleNN(input_dim, output_dim, hidden_layers, dropout_rate=dropout_rate).to(device)
-    model = FarsightMPL(input_dim, output_dim, dropout_rate.to(device))
+    model = FarsightMPL(input_dim, output_dim, dropout_rate).to(device)
 
 
 
