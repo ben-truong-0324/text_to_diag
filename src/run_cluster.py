@@ -226,7 +226,7 @@ def optimize_threshold(test_outputs_np, y_test_np):
     
     return best_threshold, best_accuracy
 
-def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, params, max_epochs=NN_MAX_EPOCH, patience=NN_PATIENCE, model="default"):
+def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, params, max_epochs, patience, model="default"):
     lr = params['lr']
     batch_size = params['batch_size']
     hidden_layers = params['hidden_layers']
@@ -278,7 +278,7 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
     epoch_losses = []
     start_time = time.time()
     print("Starting training loop...")
-
+    print(max_epochs)
     for epoch in range(max_epochs):
         epoch_trained+=1
         model.train()
@@ -500,7 +500,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             
             # Train and evaluate model with current parameters
             accuracy, f1,auc_roc, runtime,temp_model,epoch_losses,y_test,predicted = train_nn_with_early_stopping_with_param(
-                X_train, y_train, X_val, y_val, current_params, model,
+                X_train, y_train, X_val, y_val, current_params,NN_MAX_EPOCH, NN_PATIENCE, model,
             )
             
             # Store the current metrics
@@ -1338,12 +1338,7 @@ def implement_clustering_on_reduced_features(X,y):
 def implement_farsight(X,y):
 
     #############RUNNING NN
-    print("PyTorch mps availability check: ",torch.backends.mps.is_available())
-    print("PyTorch cuda availability check: ",torch.cuda.is_available())
-    if torch.backends.mps.is_available():
-        device = torch.device("mps")
-    else:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
     
     #to test for results using torch with cpu, run a differnt DRAFT_VER_A3
     nn_pkl_path = f'{NN_PKL_OUTDIR}/nn_results.pkl'
@@ -1650,7 +1645,10 @@ def main():
 if __name__ == "__main__":
     print("PyTorch mps availability check: ",torch.backends.mps.is_available())
     print("PyTorch cuda availability check: ",torch.cuda.is_available())
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     kf = KFold(n_splits=K_FOLD_CV, shuffle=True, random_state=GT_ID)
     print(f"Torch will be running on {device}")
 
