@@ -102,7 +102,10 @@ class FarsightMPL(nn.Module):
         for layer in self.layers[:-1]:
             x = torch.relu(layer(x))
             x = self.dropout(x)  # Apply dropout after each hidden layer
-        return self.layers[-1](x)
+        x = torch.relu(self.layers[-1](x))
+        x = self.dropout(x)
+        return x
+        # return self.layers[-1](x)
 
 class FarsightCNN(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=289, feature_maps=19, dropout_rate=0.5):
@@ -112,13 +115,25 @@ class FarsightCNN(nn.Module):
         self.layers.append(nn.Linear(input_dim, hidden_dim))
         self.layers.append(nn.Conv2d(in_channels=1, out_channels=feature_maps, kernel_size=3, stride=1, padding=0))
         self.layers.append(nn.Linear(feature_maps * 15 * 15, output_dim))
-    
+
     def forward(self, x):
-        for layer in self.layers[:-1]:
+        for i, layer in enumerate(self.layers[:-1]):
+            if isinstance(layer, nn.Conv2d):
+                # Reshape the input to match Conv2d's expected input
+                x = x.view(x.size(0), 1, 17, 17)  # Batch size, Channels, Height, Width
             x = torch.relu(layer(x))
             x = self.dropout(x)  # Apply dropout after each hidden layer
         
+        # Flatten the output of Conv2d for the final Linear layer
+        x = x.view(x.size(0), -1)  # Flatten to [batch_size, num_features]
         return self.layers[-1](x)
+    
+    # def forward(self, x):
+    #     for layer in self.layers[:-1]:
+    #         x = torch.relu(layer(x))
+    #         x = self.dropout(x)  # Apply dropout after each hidden layer
+        
+    #     return self.layers[-1](x)
     
 class FarsightLSTM(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=289, lstm_hidden_dim=300, dropout_rate=0.1):
