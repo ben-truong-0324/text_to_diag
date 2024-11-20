@@ -99,30 +99,28 @@ print("tw_matrix created")
 
 # Step 1: NMF on BoW (150 topics)
 num_topics_no_sc = 150
-nmf_bow_150 = Nmf(
-    corpus=corpus,                 # Sparse BoW corpus
-    id2word=texts_dict,            # Gensim Dictionary object
-    num_topics=num_topics_no_sc,   # Number of topics
-    random_state=42,               # Set random seed for reproducibility
-)
-print("nmf of bow")
-# print(nmf_bow_150)
-# Compute document-topic matrix
-doc_topics = [nmf_bow_150.get_document_topics(doc) for doc in corpus]
-X_nmf_bow = np.zeros((len(corpus), num_topics_no_sc))
-for doc_idx, topics in enumerate(doc_topics):
-    for topic_id, prob in topics:
-        X_nmf_bow[doc_idx, topic_id] = prob
-print("nmf_bow created")
 
-
-with open('../data/X_nmf_bow.pkl', 'wb') as f:  # 'wb' for writing in binary mode
-    pickle.dump(X_nmf_bow, f)
-
-
-print(f"X_nmf_bow (150 topics): {X_nmf_bow.shape}")
-# Sample and print rows
-print_sample_rows(X_nmf_bow, "X_nmf_bow (150 topics)")
+X_nmf_bow_path = '../data/X_nmf_bow.pkl'
+if not os.path.exists(X_nmf_bow_path):
+    nmf_bow_150 = Nmf(
+        corpus=corpus,                 # Sparse BoW corpus
+        id2word=texts_dict,            # Gensim Dictionary object
+        num_topics=num_topics_no_sc,   # Number of topics
+        random_state=42,               # Set random seed for reproducibility
+    )
+    print("nmf of bow")
+    # print(nmf_bow_150)
+    # Compute document-topic matrix
+    doc_topics = [nmf_bow_150.get_document_topics(doc) for doc in corpus]
+    X_nmf_bow = np.zeros((len(corpus), num_topics_no_sc))
+    for doc_idx, topics in enumerate(doc_topics):
+        for topic_id, prob in topics:
+            X_nmf_bow[doc_idx, topic_id] = prob
+    print("nmf_bow created")
+    with open(X_nmf_bow_path, 'wb') as f:  # 'wb' for writing in binary mode
+        pickle.dump(X_nmf_bow, f)
+    print(f"X_nmf_bow (150 topics): {X_nmf_bow.shape}")
+    print_sample_rows(X_nmf_bow, "X_nmf_bow (150 topics)")
 
 corpus_tw = [
     [(word_id, weight) for word_id, weight in enumerate(doc) if weight > 0]
@@ -135,9 +133,12 @@ print(f"Number of zeros in corpus_tw: {np.sum(corpus_tw == 0)}")
 # Small constant to replace zero rows (e.g., epsilon)
 epsilon = 1e-10
 # Identify all-zero rows
-all_zero_rows = np.all(corpus_tw == 0, axis=1)
-corpus_tw[all_zero_rows] = epsilon
-print(f"Replaced {np.sum(all_zero_rows)} all-zero rows with a small value.")
+corpus_tw = [
+    doc if len(doc) > 0 and any(weight > 0 for _, weight in doc) else [(0, epsilon)]
+    for doc in corpus_tw
+]
+
+print(f"Replaced all-zero rows with a small value.")
 from gensim import corpora
 
 texts_dict_tw = corpora.Dictionary()
