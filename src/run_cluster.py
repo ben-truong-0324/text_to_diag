@@ -96,9 +96,12 @@ class FarsightMPL(nn.Module):
         self.dropout_rate = dropout_rate
         self.layers = nn.Sequential(
             nn.Linear(input_dim, 75),       # Input to first hidden layer
+            nn.ReLU(), 
             nn.Dropout(dropout_rate), 
             nn.Linear(75, output_dim),     # Second hidden layer to output layer
-            nn.Sigmoid()                   # Sigmoid activation for output
+            nn.ReLU(), 
+            nn.Dropout(dropout_rate), 
+            # nn.Sigmoid()                   # Sigmoid activation for output
         )
 
     def forward(self, x):
@@ -124,8 +127,8 @@ class FarsightCNN(nn.Module):
         x = x.view(x.size(0), 1, 17, 17)  # Reshape based on fc1 output (1 channel, 17x17 grid)
         x = torch.relu(self.conv(x))
         x = x.view(x.size(0), -1)
-        x = self.fc2(x)
-        x = self.sigmoid(x)
+        x = torch.relu(self.fc2(x))
+        # x = self.sigmoid(x)
         return x
     
 class FarsightLSTM(nn.Module):
@@ -139,9 +142,13 @@ class FarsightLSTM(nn.Module):
     def forward(self, x):
         x = torch.relu(self.fc1(x))
         x = self.dropout(x)
+        if x.dim() == 2:  # If x is 2D (batch_size, hidden_dim)
+            x = x.unsqueeze(1)  # Add sequence dimension: (batch_size, 1, hidden_dim)
         lstm_out, _ = self.lstm(x)
-        x = self.fc2(lstm_out[:, -1, :])  # Get the last hidden state
-        x = self.sigmoid(x)
+        x = torch.relu(lstm_out[:, -1, :])
+        # x = torch.relu(self.fc2(lstm_out[:, -1, :]))  # Get the last hidden state
+        x = self.dropout(x)
+        # x = self.sigmoid(x)
         return x
     
 class FarsightBiLSTM(nn.Module):
@@ -158,8 +165,9 @@ class FarsightBiLSTM(nn.Module):
         x = self.dropout(x)
         lstm_out, _ = self.lstm1(x)
         lstm_out, _ = self.lstm2(lstm_out)
-        x = self.fc2(lstm_out[:, -1, :])  # Get the last hidden state
-        x = self.sigmoid(x)
+        x = torch.relu(self.fc2(lstm_out[:, -1, :]))
+        x = self.dropout(x)
+        # x = self.sigmoid(x)
         return x
 
 
@@ -180,12 +188,16 @@ class FarsightConvLSTM(nn.Module):
         x = self.dropout(x)
         x = x.view(x.size(0), 1, 17, 17)  # Assuming 17x17 grid
         x = torch.relu(self.conv(x))
+        x = self.dropout(x)
         x = x.view(x.size(0), -1)
         x = torch.relu(self.fc2(x))
         x = self.dropout(x)
-        lstm_out, _ = self.lstm(x.unsqueeze(1))  # Add time dimension
-        x = self.fc3(lstm_out[:, -1, :])  # Get the last hidden state
-        x = self.sigmoid(x)
+        if x.dim() == 2:  # If x is 2D (batch_size, hidden_dim)
+            x = x.unsqueeze(1)
+        lstm_out, _ = self.lstm(x)  # Add time dimension
+        x = torch.relu(self.fc3(lstm_out[:, -1, :]))  # Get the last hidden state
+        x = self.dropout(x)
+        # x = self.sigmoid(x)
         return x
 
 
