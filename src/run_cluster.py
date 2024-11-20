@@ -145,8 +145,6 @@ class FarsightLSTM(nn.Module):
         lstm_out, _ = self.layers[1](x)  # LSTM returns (output, (hidden_state, cell_state))
         x = torch.relu(lstm_out[:, -1, :]) 
         x = self.dropout(x)
-        # x = torch.relu(self.layers[2](x))
-        # x = self.dropout(x)
         return self.layers[-1](x)
 
 
@@ -171,8 +169,6 @@ class FarsightBiLSTM(nn.Module):
         lstm_out2, _ = self.layers[2](lstm_out1)  # LSTM output from the first BiLSTM
         lstm_out2 = self.dropout(lstm_out2)  # Apply dropout
         x = lstm_out2[:, -1, :]  # Get the last output in the sequence (batch_size, lstm_hidden_dim * 2)
-        # x = torch.relu(self.layers[3](x))
-        # x = self.dropout(x)
         return self.layers[-1](x)
     
 
@@ -194,13 +190,17 @@ class FarsightConvLSTM(nn.Module):
             if isinstance(layer, nn.Conv2d):
                 # Reshape the input to match Conv2d's expected input
                 x = x.view(x.size(0), 1, 17, 17)  # Batch size, Channels, Height, Width
+                x = torch.relu(layer(x))
+                x = self.dropout(x)
+                x = x.view(x.size(0), -1) 
             elif isinstance(layer, nn.LSTM):
                 if x.dim() == 2:  # If x is 2D, add sequence dimension
                     x = x.unsqueeze(1) 
                 lstm_out, _ = self.layers[3](x)  # LSTM output (batch_size, seq_length, lstm_hidden_dim)
                 x = lstm_out[:, -1, :]
-            x = torch.relu(layer(x))
-            x = self.dropout(x)
+            elif isinstance(layer, nn.Linear):
+                x = torch.relu(layer(x))
+                x = self.dropout(x)
         return self.layers[-1](x)
 
 
