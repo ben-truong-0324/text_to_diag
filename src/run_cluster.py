@@ -335,7 +335,7 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
         if epochs_without_improvement >= patience:
             break
         epoch_runtime = time.time() - epoch_start_time
-        print(f"Epoch {epoch} Training completed in {epoch_runtime // 60:.0f}m {epoch_runtime % 60:.0f}s\n")
+        print(f"Epoch completed in {epoch_runtime // 60:.0f}m {epoch_runtime % 60:.0f}s\n")
     runtime = time.time() - start_time
     print(model)
     print(f"Model {model_name} Training completed in {runtime // 60:.0f}m {runtime % 60:.0f}s\n")
@@ -617,7 +617,7 @@ def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
                 best_overall_cv_losses,running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
                     X_features, 
                     y_labels, 
-                    do_cv=False, 
+                    do_cv=True, 
                     random_opt_algo="default", 
                     best_overall_metric=best_overall_metric,  # Keyword argument
                     best_overall_method=best_overall_method,    # Keyword argument

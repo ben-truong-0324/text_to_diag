@@ -20,7 +20,7 @@ FARSIGHT_MODELS = [
     # 'default',
 # 'MPL',
 # 'CNN', 
-# 'LSTM', 'bi-LSTM',
+'LSTM', 'bi-LSTM',
  'conv-LSTM', 
                      #'seg-gru',
                     ]
