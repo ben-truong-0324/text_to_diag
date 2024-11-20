@@ -326,7 +326,7 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
         # Validation
         val_loss = evaluate_model(model, X_test, y_test, device,criterion)
         epoch_losses.append((avg_epoch_loss,val_loss))
-        print(f"Epoch {epoch}, last train_loss {epoch_losses[-1]:.5F} val_loss {val_loss:.5F} per {criterion}")
+        print(f"Epoch {epoch}, last train_loss {epoch_losses[-1][0]:.5F} val_loss {val_loss:.5F} per {criterion}")
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             epochs_without_improvement = 0
