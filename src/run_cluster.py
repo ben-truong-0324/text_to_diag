@@ -605,7 +605,7 @@ def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
                 best_overall_cv_losses,running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
                     X_features, 
                     y_labels, 
-                    do_cv=False, 
+                    do_cv=True, 
                     random_opt_algo="default", 
                     best_overall_metric=best_overall_metric,  # Keyword argument
                     best_overall_method=best_overall_method,    # Keyword argument
