@@ -94,111 +94,135 @@ class FarsightMPL(nn.Module):
     def __init__(self, input_dim, output_dim, dropout_rate=0.5):
         super(FarsightMPL, self).__init__()
         self.dropout_rate = dropout_rate
-        self.layers = nn.Sequential(
-            nn.Linear(input_dim, 75),       # Input to first hidden layer
-            nn.ReLU(), 
-            nn.Dropout(dropout_rate), 
-            nn.Linear(75, output_dim),     # Second hidden layer to output layer
-            nn.ReLU(), 
-            nn.Dropout(dropout_rate), 
-            # nn.Sigmoid()                   # Sigmoid activation for output
-        )
+        self.layers = nn.ModuleList()
+        self.layers.append(nn.Linear(input_dim, 75))
+        self.layers.append(nn.Linear(75, output_dim))
+        self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, x):
-        return self.layers(x)
+        for layer in self.layers[:-1]:
+            x = torch.relu(layer(x))
+            x = self.dropout(x)  # Apply dropout after each hidden layer
+        
+        return self.layers[-1](x)
 
 class FarsightCNN(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=289, feature_maps=19, dropout_rate=0.5):
         super(FarsightCNN, self).__init__()
         
         self.dropout_rate = dropout_rate
-        # Fully connected layer: input to hidden_dim (default: 289)
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        # Convolutional layer: 3x3 kernel, feature_maps (default: 19),
-        self.conv = nn.Conv2d(in_channels=1, out_channels=feature_maps, kernel_size=3, stride=1, padding=0)
-        #  change 289 1d into 17x17 2d, after stride 1 3x3 becomes 15x15
-        self.fc2 = nn.Linear(feature_maps * 15 * 15, output_dim)
-        self.dropout = nn.Dropout(dropout_rate)
-        self.sigmoid = nn.Sigmoid()
+        self.layers = nn.ModuleList()
+        self.layers.append(nn.Linear(input_dim, hidden_dim))
+        self.layers.append(nn.Conv2d(in_channels=1, out_channels=feature_maps, kernel_size=3, stride=1, padding=0))
+        self.layers.append(nn.Linear(feature_maps * 15 * 15, output_dim))
+
+
+        # # Fully connected layer: input to hidden_dim (default: 289)
+        # self.fc1 = nn.Linear(input_dim, hidden_dim)
+        # # Convolutional layer: 3x3 kernel, feature_maps (default: 19),
+        # self.conv = nn.Conv2d(in_channels=1, out_channels=feature_maps, kernel_size=3, stride=1, padding=0)
+        # #  change 289 1d into 17x17 2d, after stride 1 3x3 becomes 15x15
+        # self.fc2 = nn.Linear(feature_maps * 15 * 15, output_dim)
+        # self.dropout = nn.Dropout(dropout_rate)
+        # self.sigmoid = nn.Sigmoid()
     
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = x.view(x.size(0), 1, 17, 17)  # Reshape based on fc1 output (1 channel, 17x17 grid)
-        x = torch.relu(self.conv(x))
-        x = x.view(x.size(0), -1)
-        x = torch.relu(self.fc2(x))
+        # x = torch.relu(self.fc1(x))
+        # x = self.dropout(x)
+        # x = x.view(x.size(0), 1, 17, 17)  # Reshape based on fc1 output (1 channel, 17x17 grid)
+        # x = torch.relu(self.conv(x))
+        # x = x.view(x.size(0), -1)
+        # x = torch.relu(self.fc2(x))
         # x = self.sigmoid(x)
-        return x
+        # return x
+        for layer in self.layers[:-1]:
+            x = torch.relu(layer(x))
+            x = self.dropout(x)  # Apply dropout after each hidden layer
+        
+        return self.layers[-1](x)
     
 class FarsightLSTM(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=289, lstm_hidden_dim=300, dropout_rate=0.1):
         super(FarsightLSTM, self).__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.lstm = nn.LSTM(hidden_dim, lstm_hidden_dim, batch_first=True)
-        self.fc2 = nn.Linear(lstm_hidden_dim, output_dim)
+        # self.fc1 = nn.Linear(input_dim, hidden_dim)
+        # self.lstm = nn.LSTM(hidden_dim, lstm_hidden_dim, batch_first=True)
+        # self.fc2 = nn.Linear(lstm_hidden_dim, output_dim)
         self.dropout = nn.Dropout(dropout_rate)
         self.sigmoid = nn.Sigmoid()
+
+        self.layers = nn.ModuleList()
+        self.layers.append(nn.Linear(input_dim, hidden_dim))
+        self.layers.append(nn.LSTM(hidden_dim, lstm_hidden_dim, batch_first=True))
+        self.layers.append(nn.Linear(lstm_hidden_dim, output_dim))
+
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.layers[0](x))  # First Linear layer
         x = self.dropout(x)
-        if x.dim() == 2:  # If x is 2D (batch_size, hidden_dim)
-            x = x.unsqueeze(1)  # Add sequence dimension: (batch_size, 1, hidden_dim)
-        lstm_out, _ = self.lstm(x)
-        x = torch.relu(lstm_out[:, -1, :])
-        # x = torch.relu(self.fc2(lstm_out[:, -1, :]))  # Get the last hidden state
+        x = x.unsqueeze(1)  # Shape: (batch_size, seq_length=1, hidden_dim)
+        lstm_out, _ = self.layers[1](x)  # LSTM returns (output, (hidden_state, cell_state))
+        x = torch.relu(lstm_out[:, -1, :])  # Get the last output for batch
         x = self.dropout(x)
-        # x = self.sigmoid(x)
-        return x
+        # x = self.layers[2](x)  # Output layer
+        x = torch.relu(self.layers[2](x))
+        # return x
+        return self.layers[-1](x)
+
+
     
 class FarsightBiLSTM(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=289, lstm_hidden_dim=150, dropout_rate=0.5):
         super(FarsightBiLSTM, self).__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.lstm1 = nn.LSTM(hidden_dim, lstm_hidden_dim, batch_first=True, bidirectional=True)
-        self.lstm2 = nn.LSTM(lstm_hidden_dim * 2, lstm_hidden_dim, batch_first=True, bidirectional=True)
-        self.fc2 = nn.Linear(lstm_hidden_dim * 2, output_dim)
+        self.layers = nn.ModuleList()
+        self.layers.append(nn.Linear(input_dim, hidden_dim))
+        self.layers.append(nn.LSTM(hidden_dim, lstm_hidden_dim, batch_first=True, bidirectional=True))
+        self.layers.append(nn.LSTM(lstm_hidden_dim * 2, lstm_hidden_dim, batch_first=True, bidirectional=True))
+        self.layers.append(nn.Linear(lstm_hidden_dim * 2, output_dim))
         self.dropout = nn.Dropout(dropout_rate)
         self.sigmoid = nn.Sigmoid()
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = self.dropout(x)
-        lstm_out, _ = self.lstm1(x)
-        lstm_out, _ = self.lstm2(lstm_out)
-        x = torch.relu(self.fc2(lstm_out[:, -1, :]))
-        x = self.dropout(x)
-        # x = self.sigmoid(x)
-        return x
-
+        x = torch.relu(self.layers[0](x))  # Apply ReLU after the first linear layer
+        x = self.dropout(x)  # Apply dropout
+        if x.dim() == 2:  # If x is 2D, add sequence dimension
+            x = x.unsqueeze(1)  # Shape becomes (batch_size, seq_length=1, hidden_dim)
+        lstm_out1, _ = self.layers[1](x)  # LSTM returns (output, (hidden_state, cell_state))
+        lstm_out1 = self.dropout(lstm_out1)  # Apply dropout
+        lstm_out2, _ = self.layers[2](lstm_out1)  # LSTM output from the first BiLSTM
+        lstm_out2 = self.dropout(lstm_out2)  # Apply dropout
+        x = lstm_out2[:, -1, :]  # Get the last output in the sequence (batch_size, lstm_hidden_dim * 2)
+        # x = self.layers[3](x)  # Output layer: (batch_size, output_dim)
+        x = torch.relu(self.layers[3](x))
+        return self.layers[-1](x)
+    
 
 class FarsightConvLSTM(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=289, feature_maps=19, lstm_hidden_dim=300, dropout_rate=0.5):
         super(FarsightConvLSTM, self).__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.conv = nn.Conv2d(in_channels=1, out_channels=feature_maps, kernel_size=3, stride=1, padding=0)
-        self.fc2 = nn.Linear(feature_maps * 15 * 15, hidden_dim)
-        self.lstm = nn.LSTM(hidden_dim, lstm_hidden_dim, batch_first=True)
-        self.fc3 = nn.Linear(lstm_hidden_dim, output_dim)
-        self.dropout = nn.Dropout(dropout_rate)        
+        self.layers = nn.ModuleList()
+        self.layers.append(nn.Linear(input_dim, hidden_dim))
+        self.layers.append(nn.Conv2d(in_channels=1, out_channels=feature_maps, kernel_size=3, stride=1, padding=0))
+        self.layers.append(nn.Linear(feature_maps * 15 * 15, hidden_dim))
+        self.layers.append(nn.LSTM(hidden_dim, lstm_hidden_dim, batch_first=True))
+        self.layers.append(nn.Linear(lstm_hidden_dim, output_dim))
+        self.dropout = nn.Dropout(dropout_rate)
         self.sigmoid = nn.Sigmoid()
-    
     def forward(self, x):
-        # Fully connected layer with ReLU activation
-        x = torch.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = x.view(x.size(0), 1, 17, 17)  # Assuming 17x17 grid
-        x = torch.relu(self.conv(x))
-        x = self.dropout(x)
-        x = x.view(x.size(0), -1)
-        x = torch.relu(self.fc2(x))
-        x = self.dropout(x)
-        if x.dim() == 2:  # If x is 2D (batch_size, hidden_dim)
-            x = x.unsqueeze(1)
-        lstm_out, _ = self.lstm(x)  # Add time dimension
-        x = torch.relu(self.fc3(lstm_out[:, -1, :]))  # Get the last hidden state
-        x = self.dropout(x)
-        # x = self.sigmoid(x)
-        return x
+        x = torch.relu(self.layers[0](x))  # Linear -> ReLU
+        x = self.dropout(x)  # Apply dropout
+        # Step 2: Convolutional layer
+        x = x.unsqueeze(1)  # Unsqueeze to add channel dimension for Conv2d (batch_size, 1, input_size)
+        x = torch.relu(self.layers[1](x))  # Apply convolution followed by ReLU activation
+        x = x.view(x.size(0), -1)  # Flatten the output to fit into the next linear layer
+        x = self.dropout(x)  # Apply dropout after convolution
+        # Step 3: Linear layer after convolution
+        x = torch.relu(self.layers[2](x))  # Linear -> ReLU
+        x = self.dropout(x)  # Apply dropout
+        # Step 4: LSTM layer
+        x = x.unsqueeze(1)  # Add sequence dimension (batch_size, seq_length=1, hidden_dim)
+        lstm_out, _ = self.layers[3](x)  # LSTM output (batch_size, seq_length, lstm_hidden_dim)
+        x = lstm_out[:, -1, :]  # Take the last hidden state from LSTM
+        # Step 5: Final Linear layer
+        x = torch.relu(self.layers[4](x))  # Output layer
+        return self.layers[-1](x)
 
 
 def evaluate_model(model, X_val, y_val, device,criterion):
@@ -291,6 +315,7 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
     start_time = time.time()
     print("Starting training loop...")
     for epoch in range(max_epochs):
+        print(epoch, epoch_losses)
         epoch_trained+=1
         model.train()
 
@@ -589,25 +614,27 @@ def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
             else:
                 y_labels = torch.LongTensor(y_values).to(device)
         ###################################
-        for model in FARSIGHT_MODELS:
+        for model_name in FARSIGHT_MODELS:
             best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space, \
                 best_overall_cv_losses,running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
                     X_features, 
                     y_labels, 
-                    do_cv=True, 
+                    do_cv=False, 
                     random_opt_algo="default", 
                     best_overall_metric=best_overall_metric,  # Keyword argument
                     best_overall_method=best_overall_method,    # Keyword argument
                     best_overall_model=best_overall_model,    # Keyword argument
                     best_overall_cv_losses = best_overall_cv_losses,
-                    type_tag=f"farsight_{model}",             # Keyword argument,
-                    model_name = model,
+                    type_tag=f"farsight_{model_name}",             # Keyword argument,
+                    model_name = model_name,
                 )
-            nn_results[model] = {'mc_results': running_metrics_Xy_srx_space}
-            with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_{model}.pkl', 'wb') as f:
+            nn_results[model_name] = {'mc_results': running_metrics_Xy_srx_space}
+            with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_farsight_{model_name}.pkl', 'wb') as f:
                 pickle.dump(running_best_y_preds,f)
-        with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_farsight.pkl', 'wb') as f:
-            pickle.dump(running_best_y_preds,f)
+            print(f"Saved results to {Y_PRED_PKL_OUTDIR}/y_pred_farsight_{model_name}.pkl")
+        with open(f'{NN_PKL_OUTDIR}/farsight_nn_results.pkl', 'wb') as f:
+            pickle.dump(nn_results,f)
+        print(f"Saved results to {NN_PKL_OUTDIR}/farsight_nn_results.pkl")
         
     pass
 
