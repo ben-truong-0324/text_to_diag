@@ -26,7 +26,8 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import confusion_matrix,precision_score, \
                         recall_score,classification_report, \
                         accuracy_score, f1_score, log_loss, \
-                       confusion_matrix, ConfusionMatrixDisplay, roc_auc_score
+                       confusion_matrix, ConfusionMatrixDisplay,\
+                          roc_auc_score, matthews_corrcoef, average_precision_score
 from sklearn.cluster import KMeans, AgglomerativeClustering,DBSCAN,Birch,MeanShift, SpectralClustering
 from sklearn.mixture import GaussianMixture
 from sklearn.model_selection import ParameterSampler
@@ -123,17 +124,10 @@ class FarsightCNN(nn.Module):
                 x = x.view(x.size(0), 1, 17, 17)  # Batch size, Channels, Height, Width
             x = torch.relu(layer(x))
             x = self.dropout(x)  # Apply dropout after each hidden layer
-        
-        # Flatten the output of Conv2d for the final Linear layer
         x = x.view(x.size(0), -1)  # Flatten to [batch_size, num_features]
         return self.layers[-1](x)
     
-    # def forward(self, x):
-    #     for layer in self.layers[:-1]:
-    #         x = torch.relu(layer(x))
-    #         x = self.dropout(x)  # Apply dropout after each hidden layer
-        
-    #     return self.layers[-1](x)
+ 
     
 class FarsightLSTM(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=289, lstm_hidden_dim=300, dropout_rate=0.1):
@@ -147,12 +141,12 @@ class FarsightLSTM(nn.Module):
     def forward(self, x):
         x = torch.relu(self.layers[0](x))  # First Linear layer
         x = self.dropout(x)
-        x = x.unsqueeze(1)  # Shape: (batch_size, seq_length=1, hidden_dim)
+        x = x.unsqueeze(1)
         lstm_out, _ = self.layers[1](x)  # LSTM returns (output, (hidden_state, cell_state))
         x = torch.relu(lstm_out[:, -1, :]) 
         x = self.dropout(x)
-        x = torch.relu(self.layers[2](x))
-        x = self.dropout(x) #maybe remove last dropout?
+        # x = torch.relu(self.layers[2](x))
+        # x = self.dropout(x)
         return self.layers[-1](x)
 
 
@@ -177,8 +171,8 @@ class FarsightBiLSTM(nn.Module):
         lstm_out2, _ = self.layers[2](lstm_out1)  # LSTM output from the first BiLSTM
         lstm_out2 = self.dropout(lstm_out2)  # Apply dropout
         x = lstm_out2[:, -1, :]  # Get the last output in the sequence (batch_size, lstm_hidden_dim * 2)
-        x = torch.relu(self.layers[3](x))
-        x = self.dropout(x)
+        # x = torch.relu(self.layers[3](x))
+        # x = self.dropout(x)
         return self.layers[-1](x)
     
 
@@ -196,19 +190,32 @@ class FarsightConvLSTM(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, x):
-        x = torch.relu(self.layers[0](x))  # Linear -> ReLU
-        x = self.dropout(x)  # Apply dropout
-        x = torch.relu(self.layers[1](x))  # Apply convolution followed by ReLU activation
-        x = self.dropout(x)  # Apply dropout after convolution
-        x = torch.relu(self.layers[2](x))  # Linear -> ReLU
-        x = self.dropout(x)  # Apply dropout
-        if x.dim() == 2:  # If x is 2D, add sequence dimension
-            x = x.unsqueeze(1) 
-        lstm_out, _ = self.layers[3](x)  # LSTM output (batch_size, seq_length, lstm_hidden_dim)
-        x = lstm_out[:, -1, :]  # Take the last hidden state from LSTM
-        x = torch.relu(self.layers[4](x))  # Output layer
-        x = self.dropout(x)
+        for i, layer in enumerate(self.layers[:-1]):
+            if isinstance(layer, nn.Conv2d):
+                # Reshape the input to match Conv2d's expected input
+                x = x.view(x.size(0), 1, 17, 17)  # Batch size, Channels, Height, Width
+            elif isinstance(layer, nn.LSTM):
+                if x.dim() == 2:  # If x is 2D, add sequence dimension
+                    x = x.unsqueeze(1) 
+                lstm_out, _ = self.layers[3](x)  # LSTM output (batch_size, seq_length, lstm_hidden_dim)
+                x = lstm_out[:, -1, :]
+            x = torch.relu(layer(x))
+            x = self.dropout(x)
         return self.layers[-1](x)
+
+
+        # x = torch.relu(self.layers[0](x))  # Linear -> ReLU
+        # x = self.dropout(x)  # Apply dropout
+        # x = torch.relu(self.layers[1](x))  # Apply convolution followed by ReLU activation
+        # x = self.dropout(x)  # Apply dropout after convolution
+        # x = torch.relu(self.layers[2](x))  # Linear -> ReLU
+        # x = self.dropout(x)  # Apply dropout
+        # if x.dim() == 2:  # If x is 2D, add sequence dimension
+        #     x = x.unsqueeze(1) 
+        # lstm_out, _ = self.layers[3](x)  # LSTM output (batch_size, seq_length, lstm_hidden_dim)
+        # x = lstm_out[:, -1, :]  # Take the last hidden state from LSTM
+        
+        # return self.layers[-1](x)
 
 
 def evaluate_model(model, X_val, y_val, device,criterion):
@@ -301,7 +308,7 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
     start_time = time.time()
     print("Starting training loop...")
     for epoch in range(max_epochs):
-        print(epoch, epoch_losses)
+        epoch_start_time = time.time()
         epoch_trained+=1
         model.train()
 
@@ -316,10 +323,10 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
             running_loss += loss.item()
 
         avg_epoch_loss = running_loss / len(train_loader)
-        epoch_losses.append(avg_epoch_loss)
-
         # Validation
         val_loss = evaluate_model(model, X_test, y_test, device,criterion)
+        epoch_losses.append((avg_epoch_loss,val_loss))
+        print(f"Epoch {epoch}, last train_loss {epoch_losses[-1]:.5F} val_loss {val_loss:.5F} per {criterion}")
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             epochs_without_improvement = 0
@@ -327,9 +334,12 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
             epochs_without_improvement += 1
         if epochs_without_improvement >= patience:
             break
+        epoch_runtime = time.time() - epoch_start_time
+        print(f"Epoch {epoch} Training completed in {epoch_runtime // 60:.0f}m {epoch_runtime % 60:.0f}s\n")
     runtime = time.time() - start_time
     print(model)
     print(f"Model {model_name} Training completed in {runtime // 60:.0f}m {runtime % 60:.0f}s\n")
+    print(f"Average time per epoch: {(runtime / epoch_trained )//60:.0f}m {(runtime / epoch_trained)%60:.0f}s")
 
     # Evaluate the model
     model.eval()
@@ -342,12 +352,8 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
             test_outputs_np = outputs.sigmoid().cpu().numpy()  # Sigmoid for multi-label probability
            
             y_test = y_test.cpu().numpy()
-            # predicted_labels = test_outputs_np.astype(int)
             best_threshold = .5
-            # best_threshold, best_accuracy = optimize_threshold(test_outputs_np, y_test_np)
             predicted = (test_outputs_np >= best_threshold).astype(int)
-            # print(best_threshold)
-
             # Calculate accuracy, AUC-ROC, and F1-score for multi-label classification
             # Individual label accuracy (mean accuracy for each label)
             label_accuracy = (predicted == y_test).mean(axis=0)
@@ -357,26 +363,32 @@ def train_nn_with_early_stopping_with_param(X_train, y_train, X_test, y_test, pa
             except ValueError:
                 auc_roc = float("nan")  # Handle cases where AUC-ROC can't be calculated
             f1 = f1_score(y_test, predicted, average="macro")
+            mcc = matthews_corrcoef(y_test.flatten(), predicted.flatten())
+            auprc = average_precision_score(y_test, test_outputs_np, average="macro")
 
         #if y is single label
         else:
             accuracy = accuracy_score(y_test.cpu(), predicted.cpu())
             f1 = f1_score(y_test.cpu(), predicted.cpu(), average='weighted')
-
             # probs = torch.softmax(outputs, dim=1)
             # auc_roc = roc_auc_score(y_test.cpu(), probs.cpu(), multi_class='ovr')  # For multi-class problems
             probs = torch.sigmoid(outputs)[:, 0]  # Assuming the positive class is the first one
             auc_roc = roc_auc_score(y_test.cpu(), probs.cpu())
+            mcc = matthews_corrcoef(y_test.cpu(), predicted.cpu())
+            auprc = average_precision_score(y_test.cpu(), probs.cpu())
+
 
         ##################
     print(f"Training terminated after epoch {epoch_trained}, "
             f"Avg Label Accuracy: {accuracy:.4f}, "
             f"AUC-ROC: {auc_roc:.4f}, "
-            f"F1-Score: {f1:.4f}")
+            f"F1-Score: {f1:.4f}, "
+            f"MCC: {mcc:.4f}, "
+            f"AU-PRC: {auprc:.4f}")
 
 
     
-    return accuracy, f1,auc_roc, runtime,model,epoch_losses,y_test,predicted
+    return accuracy, f1,auc_roc, mcc, auprc, runtime,model,epoch_losses,y_test,predicted
 
 
 def run_clustering(cluster_algo, n_clusters, random_state, X, y):
@@ -522,12 +534,12 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             y_train, y_val = y[train_idx], y[val_idx]
             
             # Train and evaluate model with current parameters
-            accuracy, f1,auc_roc, runtime,temp_model,epoch_losses,y_test,predicted = train_nn_with_early_stopping_with_param(
+            accuracy, f1,auc_roc,mcc, auprc, runtime,temp_model,epoch_losses,y_test,predicted = train_nn_with_early_stopping_with_param(
                 X_train, y_train, X_val, y_val, current_params,NN_MAX_EPOCH, NN_PATIENCE, model_name,
             )
             
             # Store the current metrics
-            current_metrics_of_Xy.append((accuracy, f1, runtime))
+            current_metrics_of_Xy.append((accuracy, f1, runtime, auc_roc,mcc, auprc))
             
             # Choose evaluation metric
             if "f1" in EVAL_FUNC_METRIC:
@@ -605,7 +617,7 @@ def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
                 best_overall_cv_losses,running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
                     X_features, 
                     y_labels, 
-                    do_cv=True, 
+                    do_cv=False, 
                     random_opt_algo="default", 
                     best_overall_metric=best_overall_metric,  # Keyword argument
                     best_overall_method=best_overall_method,    # Keyword argument
