@@ -78,12 +78,7 @@ class FarsightMPL(nn.Module):
         for layer in self.layers[:-1]:
             x = torch.relu(layer(x))
             x = self.dropout(x)  # Apply dropout after each hidden layer
-        x = torch.relu(self.layers[-1](x))
-        x = self.dropout(x)
         return x
-        # return self.layers[-1](x)
-
-
 
 
 class FarsightCNN(nn.Module):
@@ -99,9 +94,11 @@ class FarsightCNN(nn.Module):
         for i, layer in enumerate(self.layers[:-1]):
             if isinstance(layer, nn.Conv2d):
                 # Reshape the input to match Conv2d's expected input
+                #x = x.view(-1, 1, int(289**0.5), int(289**0.5))
                 x = x.view(x.size(0), 1, 17, 17)  # Batch size, Channels, Height, Width
             x = torch.relu(layer(x))
             x = self.dropout(x)  # Apply dropout after each hidden layer
+        #x = torch.flatten(x, 1)  # lfatten for fully connected layer
         x = x.view(x.size(0), -1)  # Flatten to [batch_size, num_features]
         return self.layers[-1](x)
     
