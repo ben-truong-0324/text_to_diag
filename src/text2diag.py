@@ -302,7 +302,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             pickle.dump(result_dict, f)
         print(f"Saved results to {pkl_filename}")
 
-        stats_filename = f"{TXT_OUTDIR}/farsight_results_{EVAL_FUNC_METRIC}_{model_name}_{current_params}.txt"
+        stats_filename = f"{TXT_OUTDIR}/farsight_results_{EVAL_FUNC_METRIC}_{model_name}_{params_str}.txt"
         with open(stats_filename, 'w') as f:
             f.write(f"Model: {model_name}\n")
             f.write(f"Average Accuracy: {avg_accuracy:.4f} ± {std_accuracy:.4f}\n")
