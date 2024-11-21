@@ -1493,26 +1493,28 @@ def extract_y_pred_parameters(filename):
         'dreduc_algo': None,  # Dimensionality reduction algorithm
         'dreduc_k': None,     # Dimensionality reduction parameter (k)
         'cluster_algo': None, # Clustering algorithm
-        'cluster_k': None     # Clustering parameter (k)
+        'cluster_k': None,    # Clustering parameter (k)
+        'model_name': None    # Model name for farsight cases
     }
-    # Regex patterns
-    # dreduc_pattern = r"(PCA|TSNE|UMAP)(\d+)"  # Match algo and k (e.g., "PCA498")
-    # cluster_pattern = r"(kmeans|dbscan|agglomerative)(\d+)"  # Match algo and k (e.g., "kmeans21")
-    # Build regex patterns dynamically
+
+    # If "farsight" is in the filename, extract the model name
+    if "farsight" in filename:
+        model_name_match = re.search(r"farsight_(\w+)", filename)
+        if model_name_match:
+            params['model_name'] = model_name_match.group(1)
+        return {'model_name': params['model_name']}  # Return only model_name for farsight case
+
     dreduc_pattern = rf"({'|'.join(DIMENSION_REDUCE_METHODS)})(\d+)"  # Match algo and k
     cluster_pattern = rf"({'|'.join(CLUSTER_ALGORITHMS)})(\d+)"       # Match algo and k
-    
     # Baseline case
     if "baseline" in filename:
         params['cluster_algo'] = "baseline"
         return params
-
     # Extract dimensionality reduction parameters
     dreduc_match = re.search(dreduc_pattern, filename)
     if dreduc_match:
         params['dreduc_algo'] = dreduc_match.group(1)
         params['dreduc_k'] = int(dreduc_match.group(2))
-    
     # Extract clustering parameters
     cluster_match = re.search(cluster_pattern, filename)
     if cluster_match:
@@ -1521,38 +1523,7 @@ def extract_y_pred_parameters(filename):
 
     return params if dreduc_match or cluster_match else None
 
-    # # Define regex for capturing different cases
-    # pattern = re.compile(
-    #     r"pred_stats_accuracy(?:_y_pred)?"
-    #     r"(?:_dreduc_(?P<dreduc_algo>[a-zA-Z0-9]+))?"
-    #     r"(?:_k(?P<dreduc_k>\d+))?"
-    #     r"(?:_cluster_(?P<cluster_algo>[a-zA-Z0-9]+))?"
-    #     r"(?:_(?P<cluster_k>\d+))?"
-    #     r"(?:_baseline)?\.pkl$"
-    # )
-    
-    # # Match the pattern
-    # match = pattern.match(filename)
-    # if not match:
-    #     return None
 
-    # # Extract parameters, defaulting to None if not present
-    # params = match.groupdict()
-    
-    # # Convert numerical parameters to integers if present
-    # if params['dreduc_k'] is not None:
-    #     params['dreduc_k'] = int(params['dreduc_k'])
-    # if params['cluster_k'] is not None:
-    #     params['cluster_k'] = int(params['cluster_k'])
-    
-    # # Handle baseline cases explicitly
-    # if 'baseline' in filename:
-    #     params['dreduc_algo'] = 'baseline'
-    #     params['dreduc_k'] = None
-    #     params['cluster_algo'] = None
-    #     params['cluster_k'] = None
-
-    # return params
 
 def merge_y_pred_pkl_files(input_dir, output_file):
     """
@@ -1583,20 +1554,23 @@ def merge_y_pred_pkl_files(input_dir, output_file):
             # Load the pickle file
             with open(pkl_file, 'rb') as f:
                 stats_data = pickle.load(f)
-            
-            key = (
-                params.get('dreduc_algo', 'None'),
-                params.get('dreduc_k', 'None'),
-                params.get('cluster_algo', 'None'),
-                params.get('cluster_k', 'None'),
-            )
+
+            if 'model_name' in params and params['model_name']:
+                key = params['model_name']
+            else:
+                key = (
+                    params.get('dreduc_algo', 'None'),
+                    params.get('dreduc_k', 'None'),
+                    params.get('cluster_algo', 'None'),
+                    params.get('cluster_k', 'None'),
+                )
             
             # Store relevant metrics
             merged_results[key] = {
                 'average': stats_data['average'],
                 'std': stats_data['std']
             }
-        
+            
         # Save merged results
         with open(output_file, 'wb') as f:
             pickle.dump(merged_results, f)
@@ -1638,16 +1612,37 @@ def y_pred_check():
         output_file = f"{Y_PRED_PKL_OUTDIR}/merged_y_prediction_stats.pkl"
         merged_data = merge_y_pred_pkl_files(input_directory, output_file)
 
-        # for key, value in list(merged_data.items())[:3]:  # Show first 3 entries
-        #     print(f"\nParameters: {key}")
-        #     print(f"Average: {value['average']:.3f}")
-        #     print(f"Std: {value['std']:.3f}")
-        # print(merged_data.keys())
-
         data_plots.plot_merged_y_pred_data(merged_data)
 
         
 
+def y_pred_farsight_check():
+    dataset = 'doc2vec'
+    y_pred_files = [f for f in os.listdir(f'../outputs/{dataset}') if f.startswith('y_pred') and f.endswith('.pkl')]
+    is_multi = False
+    for y_pred_file in y_pred_files:
+        y_pred_path = os.path.join(f'../outputs/{dataset}/', y_pred_file)
+        print(y_pred_path)
+        with open(y_pred_path, 'rb') as f:
+            y_preds = pickle.load(f)
+        # Analyze the structure of y_preds
+        y_test, predicted = y_preds[-1]
+        
+        if isinstance(predicted[0], (list, np.ndarray)):  # Multi-label
+            # print("Detected multi-label classification.")
+            is_multi = True
+            data_plots.plot_prediction_comparison(y_test, predicted, EVAL_FUNC_METRIC, 
+                    title=f"{'.'.join(y_pred_file.split('.')[:-1])}", )
+            
+        else:  # Single-label
+            pass
+    if is_multi:
+        # Example usage:
+        input_directory = Y_PRED_PKL_OUTDIR
+        output_file = f"{Y_PRED_PKL_OUTDIR}/merged_y_prediction_stats.pkl"
+        merged_data = merge_y_pred_pkl_files(input_directory, output_file)
+
+        data_plots.plot_merged_y_pred_data(merged_data)
 
 
 def check_etl():
@@ -1663,7 +1658,7 @@ def check_etl():
 def main(): 
     np.random.seed(GT_ID)
     
-    X,y,X_train, X_test, y_train, y_test  = check_etl()
+    # X,y,X_train, X_test, y_train, y_test  = check_etl()
     #add expedient training size minimum needed to plateau 
 
     #model_tuning = 1,     
@@ -1671,9 +1666,10 @@ def main():
     # implement_dimension_reduction(X,y)
     # implement_clustering_on_reduced_features(X,y)
 
-    implement_farsight(X, y)
+    # implement_farsight(X, y)
+    y_pred_farsight_check()
 
-    y_pred_check()
+    # y_pred_check()
 
     # result_check(X_test, y_test)
     

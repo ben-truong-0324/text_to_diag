@@ -1175,6 +1175,7 @@ import matplotlib.colors as mcolors
 
 
 def plot_merged_y_pred_data(merged_data):
+
     # Prepare the data for plotting
     x_labels = []  # X-axis labels for the parameters
     averages = []  # Y-axis values for averages
@@ -1188,27 +1189,35 @@ def plot_merged_y_pred_data(merged_data):
     other_labels = []
 
     for params, value in merged_data.items():
-        # Separate baseline cases
-        if params[2] == 'baseline':  # If it's a baseline
-            baseline_avg.append(value['average'])
-            baseline_std.append(value['std'])
-            x_labels.append('baseline')
-        else:
-            # Non-baseline cases
+        if isinstance(params, str):  # model_name case
             other_avg.append(value['average'])
             other_std.append(value['std'])
-            other_labels.append(f"{params[0]} {params[1]}-{params[2]} {params[3]}")
+            other_labels.append(params)  # Use model_name directly as the label
+        else:  # Tuple case
+            # Separate baseline cases
+            if params[2] == 'baseline':  # If it's a baseline
+                baseline_avg.append(value['average'])
+                baseline_std.append(value['std'])
+                x_labels.append('baseline')
+            else:
+                # Non-baseline cases
+                other_avg.append(value['average'])
+                other_std.append(value['std'])
+                other_labels.append(f"{params[0]} {params[1]}-{params[2]} {params[3]}")
 
     # Combine the lists for baseline and other cases
     all_avg = baseline_avg + other_avg
     all_std = baseline_std + other_std
     all_labels = x_labels + other_labels
 
+    
+
     # Sort the data by average (to show highest to lowest)
     sorted_indices = np.argsort(all_avg)[::-1]  # Reverse to have highest first
     all_avg_sorted = np.array(all_avg)[sorted_indices]
     all_std_sorted = np.array(all_std)[sorted_indices]
     all_labels_sorted = np.array(all_labels)[sorted_indices]
+
 
     # Plotting
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -1219,14 +1228,20 @@ def plot_merged_y_pred_data(merged_data):
     colors = [cmap(norm(val)) for val in all_avg_sorted]
 
     # Plot bar chart for averages with sorted data and color gradient
-    bars = ax.barh(all_labels_sorted, all_avg_sorted, xerr=all_std_sorted, color=colors, align='center')
+    # bars = ax.barh(all_labels_sorted, all_avg_sorted, xerr=all_std_sorted, color=colors, align='center')
+    bars = ax.barh(all_labels_sorted, all_avg_sorted, color=colors, align='center')
+
+    # Add error bars with caps for the standard deviation
+    for i, (avg, std) in enumerate(zip(all_avg_sorted, all_std_sorted)):
+        ax.errorbar(avg, i, xerr=std, fmt='none', ecolor='black', capsize=5, capthick=1)
+
 
     # Set labels and title
     ax.set_xlabel('Values')
-    ax.set_title('Average and Std Deviation for Different Parameters')
+    ax.set_title(f'Average and Std Deviation {DATASET_SELECTION}_{EVAL_FUNC_METRIC}')
 
     # Set the limits for the x-axis to clip the lower end for better visibility
-    ax.set_xlim(left=min(all_avg_sorted) *.999, right=max(all_avg_sorted) *1.001)
+    ax.set_xlim(left=min(all_avg_sorted) *.8, right=1.0)
 
     # Add grid for better readability
     ax.grid(axis='x', linestyle='--', alpha=0.01)
@@ -1243,6 +1258,6 @@ def plot_merged_y_pred_data(merged_data):
 
     # Show the plot
     plt.tight_layout()
-    plt.savefig(f"{Y_PRED_OUTDIR}/aggregated_y_pred.png")
-    plt.savefig(f"{AGGREGATED_OUTDIR}/y_prediction_{EVAL_FUNC_METRIC}.png")
+    plt.savefig(f"{Y_PRED_OUTDIR}/aggregated_y_pred_{DATASET_SELECTION}_{EVAL_FUNC_METRIC}.png")
+    plt.savefig(f"{AGGREGATED_OUTDIR}/y_pred_{DATASET_SELECTION}_{EVAL_FUNC_METRIC}.png")
     plt.close()

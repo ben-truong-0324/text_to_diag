@@ -6,7 +6,7 @@ from sklearn.model_selection import ParameterSampler
 
 GT_ID = 903956596 #randomizer seed
 
-DATASET_SELECTION = 'bd4h' #credit using credit dataset for NN weight optimizing via RO
+DATASET_SELECTION = 'doc2vec' #credit using credit dataset for NN weight optimizing via RO
 
 # 'sp500'
 # 'gps'
@@ -30,7 +30,7 @@ OUTPUT_DIR_OPTIMIZE = f'../graphs'
 # OPT_DRAFT_VER = 0
 
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-DRAFT_VER_A3 = 8
+DRAFT_VER_A3 = 1
 
 CLUSTERING_MIN_K = 18
 CLUSTERING_MAX_K = 19
