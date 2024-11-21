@@ -6,12 +6,12 @@ from sklearn.model_selection import ParameterSampler
 
 GT_ID = 68420 #randomizer seed
 
-DATASET_SELECTION = 'bd4h' #credit using credit dataset for NN weight optimizing via RO
+DATASET_SELECTION = 'doc2vec' #credit using credit dataset for NN weight optimizing via RO
 
 # 'sp500'
 # 'gps'
 # 'phishing'
-BD4H_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
+DOC2VEC_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
 NMF_BOW_DATA_PATH = '../data/nmf_bow_dataset.pkl'
 NMF_TW_DATA_PATH = '../data/nmf_tw_dataset.pkl'
 
@@ -27,9 +27,9 @@ RANDOM_OPTIMIZATION_ITERATION_COUNT = 8
 
 FARSIGHT_PARAM_GRID = {
     'lr': [0.01, 0.005, 0.0005],
-    'batch_size': [16, 32, 64],
-    'dropout_rate': [0, 0.1, 0.05, 0.3],
-    'hidden_layers': [[64, 32], [128, 64, 32], [64]],
+    'batch_size': [ 64],
+    'dropout_rate': [0, 0.1, 0.05,],
+    'hidden_layers': [ [64]],
     # 'activation_function': just use relu
 }
 FARSIGHT_SRX_PARAMS = list(ParameterSampler(FARSIGHT_PARAM_GRID, n_iter=RANDOM_OPTIMIZATION_ITERATION_COUNT, random_state=GT_ID))

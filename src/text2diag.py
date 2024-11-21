@@ -20,6 +20,7 @@ import random
 from copy import deepcopy
 import hypotheses
 import math
+import itertools
 
 from scipy.stats import ttest_1samp
 
@@ -219,28 +220,15 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
     final_best_method = best_overall_method
     final_best_overall_cv_losses = best_overall_cv_losses
     
-    # Optimization loop with parameter sampling
-    max_iterations = RANDOM_OPTIMIZATION_ITERATION_COUNT  
+    param_combinations = list(itertools.product(*FARSIGHT_PARAM_GRID.values()))
 
-    rhc_restart_threshold = 5  # Number of iterations before restart
-    rhc_no_improvement_count = 0  # Track no improvement iterations
-
-    for i in range(RANDOM_OPTIMIZATION_ITERATION_COUNT):
-        if random_opt_algo == "RHC":  # Random Hill Climbing
-            best_params, best_score = random_hill_climbing(PARAM_GRID, iterations=10)
-            print(f"RHC: Best Params: {best_params}, Best Score: {best_score}")
-        elif random_opt_algo == "GA":  # Genetic Algorithm
-            best_params, best_score = genetic_algorithm(PARAM_GRID, population_size=10, generations=5, mutation_rate=0.1)
-            print(f"GA: Best Params: {best_params}, Best Score: {best_score}")
-        elif random_opt_algo == "SA":  # Simulated Annealing
-            best_params, best_score = simulated_annealing(PARAM_GRID, iterations=10, initial_temp=10, cooling_rate=0.9)
-            print(f"SA: Best Params: {best_params}, Best Score: {best_score}")
-
-        elif random_opt_algo == "default":  #
-            if model_name == "default":
-                current_params = random.choice(RANDOM_SRX_PARAMS)
-            else:
-                current_params = random.choice(FARSIGHT_SRX_PARAMS)
+    for params in param_combinations:
+        current_params = {
+            'lr': params[0],
+            'batch_size': params[1],
+            'dropout_rate': params[2],
+            'hidden_layers': params[3],
+        }
 
         current_metrics_of_Xy = []
         inner_cv_running_best_metric = 0
@@ -289,11 +277,47 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             running_best_y_preds = y_preds
             running_best_overall_cv_losses = cv_losses
         
-        # Restart logic for RHC
-        if rhc_no_improvement_count >= rhc_restart_threshold:
-            print(f"Restarting RHC after {rhc_no_improvement_count} iterations without improvement.")
-            rhc_no_improvement_count = 0  # Reset count
-            inner_running_best_metric = 0  # Reset current best for new search
+        #Optimization round save
+        avg_accuracy, std_accuracy, avg_mcc, avg_f1, avg_roc_auc, avg_pr_auc = get_metrics_of_hyperparm_set(y_preds)
+        result_dict = {
+            'model_name': model_name,
+            'avg_accuracy': avg_accuracy,
+            'std_accuracy': std_accuracy,  # Save the standard deviation for accuracy
+            'avg_mcc': avg_mcc,
+            'avg_f1': avg_f1,
+            'avg_roc_auc': avg_roc_auc,
+            'avg_pr_auc': avg_pr_auc,
+            'max_epoch': NN_MAX_EPOCH,
+            'current_params': current_params,
+            'current_metrics_of_Xy': current_metrics_of_Xy,
+            'y_preds': y_preds,
+            'cv_losses': cv_losses,
+            
+        }
+
+        # Save the dictionary to .pkl file
+        pkl_filename = f"{NN_PKL_OUTDIR}/farsight_results_{EVAL_FUNC_METRIC}_{model_name}_{current_params}.pkl"
+        with open(pkl_filename, 'wb') as f:
+            pickle.dump(result_dict, f)
+        print(f"Saved results to {pkl_filename}")
+
+        stats_filename = f"{TXT_OUTDIR}/farsight_results_{EVAL_FUNC_METRIC}_{model_name}_{current_params}.txt"
+        with open(stats_filename, 'w') as f:
+            f.write(f"Model: {model_name}\n")
+            f.write(f"Average Accuracy: {avg_accuracy:.4f} ± {std_accuracy:.4f}\n")
+            f.write(f"Average MCC: {avg_mcc:.4f}\n")
+            f.write(f"Average F1 Score: {avg_f1:.4f}\n")
+            f.write(f"Average AUC-ROC: {avg_roc_auc:.4f}\n")
+            f.write(f"Average AUC-PR: {avg_pr_auc:.4f}\n")
+            f.write(f"max_epoch: {NN_MAX_EPOCH}\n")
+            f.write(f"Hyperparameters: {current_params}\n")
+            f.write(f"Metric: {current_metrics_of_Xy}\n")
+            f.write(f"Metrics of Xy: {avg_metric}\n")
+            f.write(f"Y Predictions: {y_preds}\n")
+            f.write(f"CV Losses: {cv_losses}\n")
+            
+        print(f"Saved stats to {stats_filename}")
+        
 
     # Check against overall best and update if necessary
     if outer_ro_running_best_metric > final_best_metric:
