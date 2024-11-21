@@ -21,14 +21,14 @@ DATA_DEBUG = 0
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
 DRAFT_VER_A3 = 8
 
-NN_MAX_EPOCH = 20
+NN_MAX_EPOCH = 8
 
 RANDOM_OPTIMIZATION_ITERATION_COUNT = 8
 
 FARSIGHT_PARAM_GRID = {
-    'lr': [0.01, 0.005, 0.0005],
+    'lr': [0.01],
     'batch_size': [ 64],
-    'dropout_rate': [0, 0.1, 0.05,],
+    'dropout_rate': [ 0.1],
     'hidden_layers': [ [64]],
     # 'activation_function': just use relu
 }
