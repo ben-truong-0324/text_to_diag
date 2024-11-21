@@ -322,11 +322,9 @@ def get_data(dataset, do_scaling, do_log_transform):
     elif 'NMF_BOW' in dataset:
         with open(NMF_BOW_DATA_PATH, 'rb') as f:
             df_X = pickle.load(f)
-        print(df_X.shape)
-        df_X['processed_text'] = df_X['processed_text'].apply(csv_load_helper)
-        X_df = np.stack(df_X['processed_text'].to_numpy())
+        # print(df_X.head())
         Y_df = np.stack(df_X['DIAG_GROUPS_OF_FIRST_HADM_ONLY'].apply(np.array).apply(y_to_onehot).to_numpy())
-    
+        X_df = df_X.loc[:, 0:149]
     elif 'sp500' in dataset:
         if not os.path.exists(SP500_PROCESSED_DATA_PATH): 
             dataset = pd.read_csv(SP500_DATA_PATH, header=None)
@@ -404,6 +402,8 @@ def graph_raw_data(X_df, Y_df):
     raw_data_outpath = f'{OUTPUT_DIR_RAW_DATA_A3}/ver{DRAFT_VER_A3}/raw_data_assessment'
     os.makedirs(raw_data_outpath, exist_ok=True)
     # Check if Y_df is multi-label (2D) or single-label (1D)
+    print(Y_df.ndim)
+    print(Y_df.shape)
     if Y_df.ndim == 1:  # Single-label
         if not os.path.exists(f'{raw_data_outpath}/feature_heatmap.png'):
             # Plot class imbalance, feature violin, heatmap, etc.
