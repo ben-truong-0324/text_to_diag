@@ -7,7 +7,7 @@ from sklearn.model_selection import ParameterSampler
 GT_ID = 68420 #randomizer seed
 
 DATASET_SELECTION = 'doc2vec' #credit using credit dataset for NN weight optimizing via RO
-
+# NMF_BOW
 DOC2VEC_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
 NMF_BOW_DATA_PATH = '../data/nmf_bow_dataset.pkl'
 NMF_TW_DATA_PATH = '../data/nmf_tw_dataset.pkl'
@@ -15,20 +15,19 @@ NMF_TW_DATA_PATH = '../data/nmf_tw_dataset.pkl'
 EXP_DEBUG = 0
 DATA_DEBUG = 0
 
-
-
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-DRAFT_VER_A3 = 1
+DRAFT_VER_A3 = 2
 
 RANDOM_OPTIMIZATION_ITERATION_COUNT = 1
 NN_MAX_EPOCH = 60
 
 
+
 FARSIGHT_PARAM_GRID = {
-    'lr': [0.01, 0.005, 0.0005],
-    'batch_size': [16, 32, 64],
-    'dropout_rate': [0, 0.1, 0.05, 0.3],
-    'hidden_layers': [[42], [64]],
+    'lr': [0.01, 0.005, 0.02],
+    'batch_size': [ 64],
+    'dropout_rate': [0, 0.1, 0.2,],
+    'hidden_layers': [[64]],
     # 'activation_function': just use relu
 }
 

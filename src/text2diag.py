@@ -296,7 +296,8 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
         }
 
         # Save the dictionary to .pkl file
-        pkl_filename = f"{NN_PKL_OUTDIR}/farsight_results_{EVAL_FUNC_METRIC}_{model_name}_{current_params}.pkl"
+        params_str = re.sub(r'[^\w\-_]', '_', str(current_params))  # Replace invalid characters with '_'
+        pkl_filename = f"{NN_PKL_OUTDIR}/farsight_results_{EVAL_FUNC_METRIC}_{model_name}_{params_str}.pkl"
         with open(pkl_filename, 'wb') as f:
             pickle.dump(result_dict, f)
         print(f"Saved results to {pkl_filename}")
