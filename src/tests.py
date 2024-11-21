@@ -8,7 +8,7 @@ from tabulate import tabulate
 
 from sklearn.datasets import make_blobs
 
-import run_cluster
+import text2diag
 
 from config import *
 
@@ -176,20 +176,20 @@ class TestClusteringFunctions(unittest.TestCase):
 
     def test_run_clustering_kmeans(self):
         """Test KMeans clustering functionality."""
-        runtime, labels = run_cluster.run_clustering('kmeans', 3, random_state=42, X=self.X, y=self.y)
+        runtime, labels = text2diag.run_clustering('kmeans', 3, random_state=42, X=self.X, y=self.y)
         self.assertEqual(len(labels), len(self.X), "The number of labels should match the number of data points.")
         self.assertIsInstance(runtime, float, "Runtime should be a float.")
 
     def test_run_clustering_gmm(self):
         """Test GMM clustering functionality."""
-        runtime, labels = run_cluster.run_clustering('gmm', 3, random_state=42, X=self.X, y=self.y)
+        runtime, labels = text2diag.run_clustering('gmm', 3, random_state=42, X=self.X, y=self.y)
         self.assertEqual(len(labels), len(self.X), "The number of labels should match the number of data points.")
         self.assertIsInstance(runtime, float, "Runtime should be a float.")
 
     def test_run_clustering_invalid_n_clusters(self):
         """Test that ValueError is raised for invalid n_clusters."""
         with self.assertRaises(ValueError) as context:
-            run_cluster.run_clustering('kmeans', 1, random_state=42, X=self.X, y=self.y)
+            text2diag.run_clustering('kmeans', 1, random_state=42, X=self.X, y=self.y)
         self.assertEqual(str(context.exception), "n_clusters must be between 2 and 39.")
 
     def test_collect_cluster_results(self):

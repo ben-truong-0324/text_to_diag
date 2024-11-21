@@ -1,19 +1,49 @@
-print("prod config")
+print("prod config (aka for windows)")
 
 import numpy as np
 from sklearn.model_selection import ParameterSampler
 
 
-GT_ID = 903956596 #randomizer seed
+GT_ID = 68420 #randomizer seed
 
 DATASET_SELECTION = 'NMF_BOW' #credit using credit dataset for NN weight optimizing via RO
 
-# 'sp500'
-# 'gps'
-# 'phishing'
 BD4H_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
 NMF_BOW_DATA_PATH = '../data/nmf_bow_dataset.pkl'
 NMF_TW_DATA_PATH = '../data/nmf_tw_dataset.pkl'
+
+EXP_DEBUG = 0
+DATA_DEBUG = 0
+
+
+
+OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
+DRAFT_VER_A3 = 1
+
+RANDOM_OPTIMIZATION_ITERATION_COUNT = 1
+NN_MAX_EPOCH = 60
+
+
+FARSIGHT_PARAM_GRID = {
+    'lr': [0.01, 0.005, 0.0005],
+    'batch_size': [16, 32, 64],
+    'dropout_rate': [0, 0.1, 0.05, 0.3],
+    'hidden_layers': [[42], [64]],
+    # 'activation_function': just use relu
+}
+
+FARSIGHT_SRX_PARAMS = list(ParameterSampler(FARSIGHT_PARAM_GRID, n_iter=RANDOM_OPTIMIZATION_ITERATION_COUNT, random_state=GT_ID))
+
+
+
+
+
+
+#######################
+#not used in this project, but some var may still be referenced
+
+OUTPUT_DIR_OPTIMIZE = f'../graphs'
+# OPT_DRAFT_VER = 0
 
 CREDIT_DATA_PATH = '../../data/credit+approval/crx.data'
 SP500_DATA_PATH = '../../data/sp500_dataset_Oct27'
@@ -23,14 +53,6 @@ GPS_DATA_PATH1 = '../../data/GPS_Trajectory/go_track_tracks.csv'
 GPS_DATA_PATH2 = '../../data/GPS_Trajectory/go_track_trackspoints.csv'
 PHISHING_DATA_PATH = '../../data/Phishing_Legitimate_full.csv'
 
-EXP_DEBUG = 0
-DATA_DEBUG = 0
-
-OUTPUT_DIR_OPTIMIZE = f'../graphs'
-# OPT_DRAFT_VER = 0
-
-OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-DRAFT_VER_A3 = 1
 
 CLUSTERING_MIN_K = 99
 CLUSTERING_MAX_K = 100
@@ -46,7 +68,6 @@ CLUSTER_ALGORITHMS = [ 'kmeans',
 RO_ALGORITHMS = ['RHC', 'SA', 'GA', 'MIMIC']
 ALGO_COLORS = {'RHC': 'blue', 'SA': 'red', 'GA': 'green', 'MIMIC': 'black'}
 
-RANDOM_OPTIMIZATION_ITERATION_COUNT = 1
 MAX_WEIGHT_PCT = .6
 
 PROBLEM_SIZES = list(range(10, 51, 10))
@@ -74,7 +95,6 @@ MONTE_CARLO_NN_ITER = 5
 TRAIN_SIZE = .8
 TEST_SIZE = .2
 HIDDEN_NODES = [16,8]
-NN_MAX_EPOCH = 60
 NN_PATIENCE = 3
 
 #DIM REDUCTION
@@ -97,13 +117,6 @@ PARAM_GRID = {
     # 'activation_function': just use relu
 }
 
-FARSIGHT_PARAM_GRID = {
-    'lr': [0.01, 0.005, 0.0005],
-    'batch_size': [16, 32, 64],
-    'dropout_rate': [0, 0.1, 0.05, 0.3],
-    'hidden_layers': [[42], [64]],
-    # 'activation_function': just use relu
-}
 # Generate a random sample of 15 combinations from the grid
 RANDOM_SRX_PARAMS = list(ParameterSampler(PARAM_GRID, n_iter=RANDOM_OPTIMIZATION_ITERATION_COUNT, random_state=GT_ID))
-FARSIGHT_SRX_PARAMS = list(ParameterSampler(FARSIGHT_PARAM_GRID, n_iter=RANDOM_OPTIMIZATION_ITERATION_COUNT, random_state=GT_ID))
+

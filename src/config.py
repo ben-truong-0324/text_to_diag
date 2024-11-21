@@ -52,13 +52,6 @@ BIG_PICKLE_CHUNK_NUM = 5
 NUM_STATISTICAL_ITER = 7
 
 
-
-
-
-
-
-
-
 roc_period = 10
 window_size = 20
 std_dev = 2
