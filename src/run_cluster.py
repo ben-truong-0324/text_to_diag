@@ -528,28 +528,29 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
         avg_metric_per_cv = [0 for _ in range(K_FOLD_CV)] if do_cv else [0]
         cv_losses = []
         y_preds = []
-
-        for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X) if do_cv else [(range(len(X)), range(len(X)))]):
-            X_train, X_val = X[train_idx], X[val_idx]
-            y_train, y_val = y[train_idx], y[val_idx]
-            
-            # Train and evaluate model with current parameters
-            accuracy, f1,auc_roc,mcc, auprc, runtime,temp_model,epoch_losses,y_test,predicted = train_nn_with_early_stopping_with_param(
-                X_train, y_train, X_val, y_val, current_params,NN_MAX_EPOCH, NN_PATIENCE, model_name,
-            )
-            
-            # Store the current metrics
-            current_metrics_of_Xy.append((accuracy, f1, runtime, auc_roc,mcc, auprc))
-            
-            # Choose evaluation metric
-            if "f1" in EVAL_FUNC_METRIC:
-                avg_metric_per_cv[fold_idx] = f1
-            elif "accuracy" in EVAL_FUNC_METRIC:
-                avg_metric_per_cv[fold_idx] = accuracy
-            elif "auc" in EVAL_FUNC_METRIC:
-                avg_metric_per_cv[fold_idx] = auc_roc
-            cv_losses.append(epoch_losses)
-            y_preds.append((y_test,predicted))
+        for iteration in range(NUM_STATISTICAL_ITER):
+            print(f"Starting iteration {iteration + 1} of {NUM_STATISTICAL_ITER}")
+            for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X) if do_cv else [(range(len(X)), range(len(X)))]):
+                X_train, X_val = X[train_idx], X[val_idx]
+                y_train, y_val = y[train_idx], y[val_idx]
+                
+                # Train and evaluate model with current parameters
+                accuracy, f1,auc_roc,mcc, auprc, runtime,temp_model,epoch_losses,y_test,predicted = train_nn_with_early_stopping_with_param(
+                    X_train, y_train, X_val, y_val, current_params,NN_MAX_EPOCH, NN_PATIENCE, model_name,
+                )
+                
+                # Store the current metrics
+                current_metrics_of_Xy.append((accuracy, f1, runtime, auc_roc,mcc, auprc))
+                
+                # Choose evaluation metric
+                if "f1" in EVAL_FUNC_METRIC:
+                    avg_metric_per_cv[fold_idx] = f1
+                elif "accuracy" in EVAL_FUNC_METRIC:
+                    avg_metric_per_cv[fold_idx] = accuracy
+                elif "auc" in EVAL_FUNC_METRIC:
+                    avg_metric_per_cv[fold_idx] = auc_roc
+                cv_losses.append(epoch_losses)
+                y_preds.append((y_test,predicted))
 
         # Calculate average metric across folds
         avg_metric = np.mean(avg_metric_per_cv)
@@ -630,9 +631,9 @@ def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
             with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_farsight_{model_name}.pkl', 'wb') as f:
                 pickle.dump(running_best_y_preds,f)
             print(f"Saved results to {Y_PRED_PKL_OUTDIR}/y_pred_farsight_{model_name}.pkl")
-        with open(f'{NN_PKL_OUTDIR}/farsight_nn_results.pkl', 'wb') as f:
+        with open(f'{NN_PKL_OUTDIR}/farsight_{model_name}_nn_results.pkl', 'wb') as f:
             pickle.dump(nn_results,f)
-        print(f"Saved results to {NN_PKL_OUTDIR}/farsight_nn_results.pkl")
+        print(f"Saved results to {NN_PKL_OUTDIR}/farsight_{model_name}_nn_results.pkl")
         
     pass
 
