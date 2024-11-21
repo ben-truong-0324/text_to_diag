@@ -390,8 +390,6 @@ def implement_farsight(X,y):
     nn_pkl_path = f'{NN_PKL_OUTDIR}/nn_results.pkl'
     cv_losses_outpath = f'{CV_LOSSES_PKL_OUTDIR}/cv_losses.pkl'
     get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath)
-    with open(nn_pkl_path, 'rb') as f:
-        nn_results = pickle.load(f)
     
    
 def load_and_predict(model_path, X_test):

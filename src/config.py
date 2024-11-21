@@ -20,8 +20,8 @@ FARSIGHT_MODELS = [
     # 'default',
 'MPL',
 'CNN', 
-# 'LSTM', 'bi-LSTM',
-#  'conv-LSTM', 
+'LSTM', 'bi-LSTM',
+ 'conv-LSTM', 
                      #'seg-gru',
                     ]
 AGGREGATED_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/agregated_graphs')
