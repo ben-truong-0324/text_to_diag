@@ -75,9 +75,10 @@ class FarsightMPL(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, x):
-        for layer in self.layers[:-1]:
-            x = torch.relu(layer(x))
-            x = self.dropout(x)  # Apply dropout after each hidden layer
+        x = torch.relu(self.layers[0](x))  # First Linear layer
+        x = self.dropout(x)
+        x =self.layers[1](x)
+        
         return x
 
 

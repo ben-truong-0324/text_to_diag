@@ -6,9 +6,9 @@ from sklearn.model_selection import ParameterSampler
 
 GT_ID = 68420 #randomizer seed
 
-DATASET_SELECTION = 'NMF_BOW' #credit using credit dataset for NN weight optimizing via RO
+DATASET_SELECTION = 'doc2vec' #credit using credit dataset for NN weight optimizing via RO
 
-BD4H_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
+DOC2VEC_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
 NMF_BOW_DATA_PATH = '../data/nmf_bow_dataset.pkl'
 NMF_TW_DATA_PATH = '../data/nmf_tw_dataset.pkl'
 
