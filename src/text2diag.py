@@ -229,95 +229,97 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             'dropout_rate': params[2],
             'hidden_layers': params[3],
         }
-
-        current_metrics_of_Xy = []
-        inner_cv_running_best_metric = 0
-
-        avg_metric_per_cv = [0 for _ in range(K_FOLD_CV)] if do_cv else [0]
-        cv_losses = []
-        y_preds = []
-        for iteration in range(NUM_STATISTICAL_ITER):
-            print(f"Starting iteration {iteration + 1} of {NUM_STATISTICAL_ITER}")
-            for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X) if do_cv else [(range(len(X)), range(len(X)))]):
-                X_train, X_val = X[train_idx], X[val_idx]
-                y_train, y_val = y[train_idx], y[val_idx]
-                
-                # Train and evaluate model with current parameters
-                accuracy, f1,auc_roc,mcc, auprc, runtime,temp_model,epoch_losses,y_test,predicted = train_nn_with_early_stopping_with_param(
-                    X_train, y_train, X_val, y_val, current_params,NN_MAX_EPOCH, NN_PATIENCE, model_name,
-                )
-                
-                # Store the current metrics
-                current_metrics_of_Xy.append((accuracy, f1, runtime, auc_roc,mcc, auprc))
-                
-                # Choose evaluation metric
-                if "f1" in EVAL_FUNC_METRIC:
-                    avg_metric_per_cv[fold_idx] = f1
-                elif "accuracy" in EVAL_FUNC_METRIC:
-                    avg_metric_per_cv[fold_idx] = accuracy
-                elif "auc" in EVAL_FUNC_METRIC:
-                    avg_metric_per_cv[fold_idx] = auc_roc
-                cv_losses.append(epoch_losses)
-                y_preds.append((y_test,predicted))
-
-        # Calculate average metric across folds
-        avg_metric = np.mean(avg_metric_per_cv)
-        
-        # Update running best if the new metric is better
-        if avg_metric > inner_cv_running_best_metric:
-            inner_cv_running_best_metric = avg_metric
-            rhc_no_improvement_count = 0
-        else:
-            rhc_no_improvement_count += 1
-
-        if inner_cv_running_best_metric > outer_ro_running_best_metric:
-            outer_ro_running_best_metric = inner_cv_running_best_metric
-            running_best_model = temp_model
-            running_best_metrics_of_Xy_srx_space = current_metrics_of_Xy
-            running_best_y_preds = y_preds
-            running_best_overall_cv_losses = cv_losses
-        
-        #Optimization round save
-        avg_accuracy, std_accuracy, avg_mcc, avg_f1, avg_roc_auc, avg_pr_auc = get_metrics_of_hyperparm_set(y_preds)
-        result_dict = {
-            'model_name': model_name,
-            'avg_accuracy': avg_accuracy,
-            'std_accuracy': std_accuracy,  # Save the standard deviation for accuracy
-            'avg_mcc': avg_mcc,
-            'avg_f1': avg_f1,
-            'avg_roc_auc': avg_roc_auc,
-            'avg_pr_auc': avg_pr_auc,
-            'max_epoch': NN_MAX_EPOCH,
-            'current_params': current_params,
-            'current_metrics_of_Xy': current_metrics_of_Xy,
-            'y_preds': y_preds,
-            'cv_losses': cv_losses,
-            
-        }
-
-        # Save the dictionary to .pkl file
         params_str = re.sub(r'[^\w\-_]', '_', str(current_params))  # Replace invalid characters with '_'
         pkl_filename = f"{NN_PKL_OUTDIR}/farsight_results_{EVAL_FUNC_METRIC}_{model_name}_{params_str}.pkl"
-        with open(pkl_filename, 'wb') as f:
-            pickle.dump(result_dict, f)
-        print(f"Saved results to {pkl_filename}")
-
         stats_filename = f"{TXT_OUTDIR}/farsight_results_{EVAL_FUNC_METRIC}_{model_name}_{params_str}.txt"
-        with open(stats_filename, 'w') as f:
-            f.write(f"Model: {model_name}\n")
-            f.write(f"Average Accuracy: {avg_accuracy:.4f} ± {std_accuracy:.4f}\n")
-            f.write(f"Average MCC: {avg_mcc:.4f}\n")
-            f.write(f"Average F1 Score: {avg_f1:.4f}\n")
-            f.write(f"Average AUC-ROC: {avg_roc_auc:.4f}\n")
-            f.write(f"Average AUC-PR: {avg_pr_auc:.4f}\n")
-            f.write(f"max_epoch: {NN_MAX_EPOCH}\n")
-            f.write(f"Hyperparameters: {current_params}\n")
-            f.write(f"Metric: {current_metrics_of_Xy}\n")
-            f.write(f"Metrics of Xy: {avg_metric}\n")
-            f.write(f"Y Predictions: {y_preds}\n")
-            f.write(f"CV Losses: {cv_losses}\n")
+        if not os.path.exists(pkl_filename) or not os.path.exists(stats_filename):
+
+            current_metrics_of_Xy = []
+            inner_cv_running_best_metric = 0
+
+            avg_metric_per_cv = [0 for _ in range(K_FOLD_CV)] if do_cv else [0]
+            cv_losses = []
+            y_preds = []
+            for iteration in range(NUM_STATISTICAL_ITER):
+                print(f"Starting iteration {iteration + 1} of {NUM_STATISTICAL_ITER}")
+                for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X) if do_cv else [(range(len(X)), range(len(X)))]):
+                    X_train, X_val = X[train_idx], X[val_idx]
+                    y_train, y_val = y[train_idx], y[val_idx]
+                    
+                    # Train and evaluate model with current parameters
+                    accuracy, f1,auc_roc,mcc, auprc, runtime,temp_model,epoch_losses,y_test,predicted = train_nn_with_early_stopping_with_param(
+                        X_train, y_train, X_val, y_val, current_params,NN_MAX_EPOCH, NN_PATIENCE, model_name,
+                    )
+                    
+                    # Store the current metrics
+                    current_metrics_of_Xy.append((accuracy, f1, runtime, auc_roc,mcc, auprc))
+                    
+                    # Choose evaluation metric
+                    if "f1" in EVAL_FUNC_METRIC:
+                        avg_metric_per_cv[fold_idx] = f1
+                    elif "accuracy" in EVAL_FUNC_METRIC:
+                        avg_metric_per_cv[fold_idx] = accuracy
+                    elif "auc" in EVAL_FUNC_METRIC:
+                        avg_metric_per_cv[fold_idx] = auc_roc
+                    cv_losses.append(epoch_losses)
+                    y_preds.append((y_test,predicted))
+
+            # Calculate average metric across folds
+            avg_metric = np.mean(avg_metric_per_cv)
             
-        print(f"Saved stats to {stats_filename}")
+            # Update running best if the new metric is better
+            if avg_metric > inner_cv_running_best_metric:
+                inner_cv_running_best_metric = avg_metric
+                rhc_no_improvement_count = 0
+            else:
+                rhc_no_improvement_count += 1
+
+            if inner_cv_running_best_metric > outer_ro_running_best_metric:
+                outer_ro_running_best_metric = inner_cv_running_best_metric
+                running_best_model = temp_model
+                running_best_metrics_of_Xy_srx_space = current_metrics_of_Xy
+                running_best_y_preds = y_preds
+                running_best_overall_cv_losses = cv_losses
+            
+            #Optimization round save
+            avg_accuracy, std_accuracy, avg_mcc, avg_f1, avg_roc_auc, avg_pr_auc = get_metrics_of_hyperparm_set(y_preds)
+            result_dict = {
+                'model_name': model_name,
+                'avg_accuracy': avg_accuracy,
+                'std_accuracy': std_accuracy,  # Save the standard deviation for accuracy
+                'avg_mcc': avg_mcc,
+                'avg_f1': avg_f1,
+                'avg_roc_auc': avg_roc_auc,
+                'avg_pr_auc': avg_pr_auc,
+                'max_epoch': NN_MAX_EPOCH,
+                'current_params': current_params,
+                'current_metrics_of_Xy': current_metrics_of_Xy,
+                'y_preds': y_preds,
+                'cv_losses': cv_losses,
+                
+            }
+
+            # Save the dictionary to .pkl file
+            
+            with open(pkl_filename, 'wb') as f:
+                pickle.dump(result_dict, f)
+            print(f"Saved results to {pkl_filename}")
+
+            with open(stats_filename, 'w') as f:
+                f.write(f"Model: {model_name}\n")
+                f.write(f"Average Accuracy: {avg_accuracy:.4f} ± {std_accuracy:.4f}\n")
+                f.write(f"Average MCC: {avg_mcc:.4f}\n")
+                f.write(f"Average F1 Score: {avg_f1:.4f}\n")
+                f.write(f"Average AUC-ROC: {avg_roc_auc:.4f}\n")
+                f.write(f"Average AUC-PR: {avg_pr_auc:.4f}\n")
+                f.write(f"max_epoch: {NN_MAX_EPOCH}\n")
+                f.write(f"Hyperparameters: {current_params}\n")
+                f.write(f"Metric: {current_metrics_of_Xy}\n")
+                f.write(f"Metrics of Xy: {avg_metric}\n")
+                f.write(f"Y Predictions: {y_preds}\n")
+                f.write(f"CV Losses: {cv_losses}\n")
+                
+            print(f"Saved stats to {stats_filename}")
         
 
     # Check against overall best and update if necessary
