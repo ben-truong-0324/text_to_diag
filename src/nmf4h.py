@@ -128,6 +128,8 @@ fcrnn['processed_text'] = fcrnn['processed_text'].apply(eval)
 
 X_nmf_bow_path = '../data/X_nmf_bow.pkl'
 X_nmf_tw_path = '../data/X_nmf_tw.pkl'
+X_nmf_bow_sc_path = '../data/X_nmf_bow_sc.pkl'
+X_nmf_tw_sc_path = '../data/X_nmf_tw_sc.pkl'
 
 nmf_bow_dataset_full_path = '../data/nmf_bow_dataset.pkl'
 nmf_tw_dataset_full_path = '../data/nmf_tw_dataset.pkl'
@@ -289,6 +291,9 @@ except Exception as e:
     print(e)
 
 ##############################################
+
+
+
 # with SC
 def compute_pmi_for_terms(terms, term_matrix):
     """
@@ -330,7 +335,7 @@ def compute_sc_for_topic(topic_idx, num_top_terms, term_matrix):
     # Get the indices of the top-n terms for the topic
     topic_terms = np.argsort(term_matrix[topic_idx, :])[::-1][:num_top_terms]
     # Compute the PMI matrix for these top terms
-    pmi_matrix,  = compute_pmi_for_terms(topic_terms, term_matrix)
+    pmi_matrix, pr_ij_matrix = compute_pmi_for_terms(topic_terms, term_matrix)
     npmi_values = []
     for i in range(len(topic_terms)):
         for j in range(i + 1, len(topic_terms)):
@@ -347,7 +352,7 @@ def compute_sc_for_topic(topic_idx, num_top_terms, term_matrix):
     sc = np.sum(npmi_values) / num_pairs if num_pairs > 0 else 0
     return sc
 
-def compute_semantic_coherence_for_all_topics(nmf_model, term_matrix, num_topics, num_top_terms):
+def compute_semantic_coherence_for_all_topics(term_matrix, num_topics, num_top_terms):
     """
     Compute Semantic Coherence (SC) for all topics in an NMF model.
     Args:
@@ -360,45 +365,178 @@ def compute_semantic_coherence_for_all_topics(nmf_model, term_matrix, num_topics
     """
     sc_scores = []
     for topic_idx in range(num_topics):
-        sc = compute_sc_for_topic(topic_idx, num_top_terms, term_matrix, term_matrix.shape[1])
+        sc = compute_sc_for_topic(topic_idx, num_top_terms, term_matrix)
         sc_scores.append(sc)
+    print(len(sc_scores))
     return sc_scores
 
-num_topics = 100
+num_topics_sc = 100
 num_top_terms = 10  ##################DIS TRU THO?
 
-# Compute SC for all topics
-sc_bow_scores = compute_semantic_coherence_for_all_topics(nmf_bow, bow_matrix, num_topics, num_top_terms)
-sc_tw_scores = compute_semantic_coherence_for_all_topics(nmf_tw, tw_matrix, num_topics, num_top_terms)
+# For corpus
+print(f"Type of corpus: {type(corpus)}")
+if isinstance(corpus, list):
+    print(f"Number of documents in corpus: {len(corpus)}")
+    print(f"First document in corpus: {corpus[0]}")
 
-def adjust_matrix_using_sc(matrix, sc_scores):
+# For tw_matrix
+print(f"Type of tw_matrix: {type(tw_matrix)}")
+if isinstance(tw_matrix, np.ndarray):  # If tw_matrix is a NumPy array
+    print(f"Shape of tw_matrix: {tw_matrix.shape}")
+elif isinstance(tw_matrix, list):
+    print(f"Length of tw_matrix (list of docs): {len(tw_matrix)}")
+    print(f"First row in tw_matrix: {tw_matrix[0]}")
+
+from scipy.sparse import dok_matrix
+
+# def convert_corpus_to_sparse_matrix(corpus, num_terms):
+#     """
+#     Convert a corpus (list of tuples) into a sparse matrix.
+    
+#     Args:
+#         corpus (list): A list where each document is a list of (term_id, frequency) tuples.
+#         num_terms (int): The total number of unique terms in the corpus.
+    
+#     Returns:
+#         sparse_matrix (scipy.sparse.dok_matrix): A sparse term-document matrix.
+#     """
+#     print("starting convert_corpus_to_sparse_matrix")
+#     num_docs = len(corpus)
+#     sparse_matrix = dok_matrix((num_docs, num_terms), dtype=float)
+
+#     #O(n*k) :(
+#     for doc_id, doc in enumerate(corpus):
+#         for term_id, frequency in doc:
+#             sparse_matrix[doc_id, term_id] = frequency
+
+#     return sparse_matrix.tocsr() 
+from scipy.sparse import coo_matrix
+
+def convert_corpus_to_sparse_matrix(corpus, num_terms):
     """
-    Adjust the matrix using the SC scores for each topic.
+    Convert a corpus (list of tuples) into a sparse matrix efficiently.
+
     Args:
-        matrix: The BoW or TW matrix.
-        sc_scores: List of SC scores for each topic.
+        corpus (list): A list where each document is a list of (term_id, frequency) tuples.
+        num_terms (int): The total number of unique terms in the corpus.
+
     Returns:
-        adjusted_matrix: Adjusted matrix incorporating SC.
+        sparse_matrix (scipy.sparse.csr_matrix): A sparse term-document matrix.
     """
-    # Create a diagonal matrix with the SC scores
-    sc_matrix = np.diag(sc_scores)
-    # Adjust the original matrix by multiplying it with the SC matrix ##############################dis tru tho?
-    adjusted_matrix = matrix @ sc_matrix
-    return adjusted_matrix
+    print("Starting optimized convert_corpus_to_sparse_matrix")
+    rows, cols, data = [], [], []
 
-# Adjust BoW and TW matrices using SC scores
-adjusted_bow_matrix = adjust_matrix_using_sc(bow_matrix, sc_bow_scores)
-adjusted_tw_matrix = adjust_matrix_using_sc(tw_matrix, sc_tw_scores)
+    # Flatten the corpus structure into row, column, and data arrays
+    for doc_id, doc in enumerate(corpus):
+        for term_id, frequency in doc:
+            rows.append(doc_id)
+            cols.append(term_id)
+            data.append(frequency)
+
+    # Create a coo_matrix and then convert to csr for fast arithmetic/row slicing
+    sparse_matrix = coo_matrix((data, (rows, cols)), shape=(len(corpus), num_terms)).tocsr()
+
+    return sparse_matrix
+
+top_term_k = 100
+print(f"Time to get to sc start: {time.time()-start_time}")
+start_time = time.time()
+num_terms_bow = max(max(doc, default=(0, 0))[0] for doc in corpus) + 1  # Add 1 for zero-indexing
+
+# Convert corpus to sparse matrix
+bow_matrix = convert_corpus_to_sparse_matrix(corpus, num_terms_bow)
+print(f"Time to finish bow_matrix: {time.time()-start_time}")
+start_time = time.time()
+# Compute SC scores for BoW
+sc_bow_scores = compute_semantic_coherence_for_all_topics(
+    term_matrix=bow_matrix,
+    num_topics=len(corpus),
+    num_top_terms=top_term_k,
+)
+print(f"Time to finish sc_bow_scores {time.time()-start_time}")
+start_time = time.time()
+
+corpus_bow_sc = []
+for doc_idx, doc in enumerate(corpus):
+    sc = sc_bow_scores[doc_idx]  # SC score for the document
+    # Scale term frequencies using SC scores
+    adjusted_doc = [(word_id, weight * sc) for word_id, weight in doc]
+    corpus_bow_sc.append(adjusted_doc)
+print(f"Transformed corpus_bow_sc, sample document: {corpus_bow_sc[0]}")
+
+print(f"Time to finish corpus_bow_sc {time.time()-start_time}")
+start_time = time.time()
 
 
-# Apply NMF
-nmf_bow_sc = NMF(n_components=100, random_state=42)
-X_nmf_bow_sc = nmf_bow_sc.fit_transform(adjusted_bow_matrix)
+if not os.path.exists(X_nmf_bow_sc_path):
+    print("working on X_nmf_bow_sc")
+    nmf_bow_sc_100 = Nmf(
+        corpus=corpus_bow_sc,                 # Sparse BoW corpus
+        id2word=texts_dict,            # Gensim Dictionary object
+        num_topics=num_topics_sc,   # Number of topics
+        random_state=42,               # Set random seed for reproducibility
+    )
+    # Compute document-topic matrix
+    doc_topics = [nmf_bow_sc_100.get_document_topics(doc) for doc in corpus_bow_sc]
+    X_nmf_bow_sc = np.zeros((len(corpus_bow_sc), num_topics_sc))
+    for doc_idx, topics in enumerate(doc_topics):
+        for topic_id, prob in topics:
+            X_nmf_bow_sc[doc_idx, topic_id] = prob
+    print("X_nmf_bow_sc created")
+    with open(X_nmf_bow_sc_path, 'wb') as f:  # 'wb' for writing in binary mode
+        pickle.dump(X_nmf_bow_sc, f)
+    print(f"X_nmf_bow_sc (100 topics): {X_nmf_bow_sc.shape}")
+    print_sample_rows(X_nmf_bow_sc, "X_nmf_bow_sc (100 topics)")
 
-nmf_tw_sc = NMF(n_components=100, random_state=42)
-X_nmf_tw_sc = nmf_tw_sc.fit_transform(adjusted_tw_matrix)
+
+print(f"Time to finish X_nmf_bow_sc {time.time()-start_time}")
+start_time = time.time()
 
 
-# Output the shape of the resulting matrices
-print(f"X_nmf_bow_sc (100 topics): {X_nmf_bow_sc.shape}")
-print(f"X_nmf_tw_sc (100 topics): {X_nmf_tw_sc.shape}")
+
+sc_tw_scores = compute_semantic_coherence_for_all_topics(
+    term_matrix=tw_matrix,
+    num_topics=tw_matrix.shape[0],
+    num_top_terms=top_term_k  # Adjust number of top terms as needed
+)
+
+print(f"Time to finish sc_tw_scores {time.time()-start_time}")
+start_time = time.time()
+
+corpus_tw_sc = []
+chunk_size = 10000  # Adjust based on memory
+for start in range(0, len(tw_matrix), chunk_size):
+    print(f"Processing chunk starting at {start}")
+    chunk = tw_matrix[start:start + chunk_size]
+    for doc_idx, doc in enumerate(chunk):
+        sc = sc_tw_scores[start + doc_idx]  # SC score for the document
+        # Apply SC scaling to non-zero weights
+        adjusted_doc = [(word_id, weight * sc) for word_id, weight in enumerate(doc) if weight != 0]
+        corpus_tw_sc.append(adjusted_doc)
+print(f"Transformed corpus_tw_sc, sample document: {corpus_tw_sc[0]}")
+
+print(f"Time to finish corpus_tw_sc {time.time()-start_time}")
+start_time = time.time()
+
+if not os.path.exists(X_nmf_tw_sc_path):
+    print("working on nmf_tw_sc_100")
+    nmf_tw_sc_100 = Nmf(
+        corpus=corpus_tw_sc,                 # Sparse BoW corpus
+        id2word=texts_dict,            # Gensim Dictionary object
+        num_topics=num_topics_sc,   # Number of topics
+        random_state=42,               # Set random seed for reproducibility
+    )
+    # Compute document-topic matrix
+    doc_topics = [nmf_tw_sc_100.get_document_topics(doc) for doc in corpus_tw_sc]
+    X_nmf_tw_sc = np.zeros((len(corpus_tw_sc), num_topics_sc))
+    for doc_idx, topics in enumerate(doc_topics):
+        for topic_id, prob in topics:
+            X_nmf_tw_sc[doc_idx, topic_id] = prob
+    print("X_nmf_tw_sc created")
+    with open(X_nmf_tw_sc_path, 'wb') as f:  # 'wb' for writing in binary mode
+        pickle.dump(X_nmf_tw_sc, f)
+    print(f"X_nmf_tw_sc (100 topics): {X_nmf_tw_sc.shape}")
+    print_sample_rows(X_nmf_tw_sc, "X_nmf_tw_sc (100 topics)")
+
+
+print(f"Time to finish X_nmf_tw_sc_path {time.time()-start_time}")
