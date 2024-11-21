@@ -313,8 +313,8 @@ def get_data(dataset, do_scaling, do_log_transform):
 
         # Convert Y_df to int
         Y_df = pd.to_numeric(Y_df, errors='coerce').astype(int)
-    elif 'bd4h' in dataset:
-        with open(BD4H_DATA_PATH, 'rb') as f:
+    elif 'doc2vec' in dataset:
+        with open(DOC2VEC_DATA_PATH, 'rb') as f:
             df_X = pickle.load(f)
         df_X['processed_text'] = df_X['processed_text'].apply(csv_load_helper)
         X_df = np.stack(df_X['processed_text'].to_numpy())

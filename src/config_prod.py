@@ -53,6 +53,9 @@ GPS_DATA_PATH1 = '../../data/GPS_Trajectory/go_track_tracks.csv'
 GPS_DATA_PATH2 = '../../data/GPS_Trajectory/go_track_trackspoints.csv'
 PHISHING_DATA_PATH = '../../data/Phishing_Legitimate_full.csv'
 
+OUTPUT_DIR_OPTIMIZE = f'../graphs'
+# OPT_DRAFT_VER = 0
+
 
 CLUSTERING_MIN_K = 99
 CLUSTERING_MAX_K = 100
