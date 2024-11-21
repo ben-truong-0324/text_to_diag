@@ -6,12 +6,15 @@ from sklearn.model_selection import ParameterSampler
 
 GT_ID = 903956596 #randomizer seed
 
-DATASET_SELECTION = 'bd4h' #credit using credit dataset for NN weight optimizing via RO
+DATASET_SELECTION = 'NMF_BOW' #credit using credit dataset for NN weight optimizing via RO
 
 # 'sp500'
 # 'gps'
 # 'phishing'
 BD4H_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
+NMF_BOW_DATA_PATH = '../data/nmf_bow_dataset.pkl'
+NMF_TW_DATA_PATH = '../data/nmf_tw_dataset.pkl'
+
 CREDIT_DATA_PATH = '../../data/credit+approval/crx.data'
 SP500_DATA_PATH = '../../data/sp500_dataset_Oct27'
 SP500_PROCESSED_DATA_PATH = '../../data/sp500_processed.pkl'
@@ -43,7 +46,7 @@ CLUSTER_ALGORITHMS = [ 'kmeans',
 RO_ALGORITHMS = ['RHC', 'SA', 'GA', 'MIMIC']
 ALGO_COLORS = {'RHC': 'blue', 'SA': 'red', 'GA': 'green', 'MIMIC': 'black'}
 
-RANDOM_OPTIMIZATION_ITERATION_COUNT = 3
+RANDOM_OPTIMIZATION_ITERATION_COUNT = 1
 MAX_WEIGHT_PCT = .6
 
 PROBLEM_SIZES = list(range(10, 51, 10))

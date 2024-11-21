@@ -1,3 +1,6 @@
+
+import time
+start_time = time.time()
 from gensim.test.utils import datapath
 from gensim.models import Nmf
 from gensim.corpora.dictionary import Dictionary
@@ -11,6 +14,9 @@ import numpy as np
 import os
 import pandas as pd
 from collections import Counter
+
+print(f"Time to import packages cached: {time.time()-start_time}")
+start_time = time.time()
 
 target_label_code_groups = {
     1: [1, 139, "Infectious and Parasitic Diseases"],
@@ -110,6 +116,7 @@ def term_weighting(nursing_notes):
         tw_weights.append(note_tw)
     return tw_weights
 
+
 print("reading diagnoses and fcrnn")
 diag_df = pd.read_csv('../data/DIAGNOSES_ICD.csv')
 diag_df['MULTIGROUP_LABEL_TARGET'] = diag_df['ICD9_CODE'].apply(get_multigroup_label).fillna(-1).astype(int)
@@ -120,6 +127,8 @@ fcrnn = pd.read_csv('../data/filtered_cleaned_raw_nursing_notes_processed.csv')
 fcrnn['processed_text'] = fcrnn['processed_text'].apply(eval)
 
 X_nmf_bow_path = '../data/X_nmf_bow.pkl'
+X_nmf_tw_path = '../data/X_nmf_tw.pkl'
+
 nmf_bow_dataset_full_path = '../data/nmf_bow_dataset.pkl'
 nmf_tw_dataset_full_path = '../data/nmf_tw_dataset.pkl'
 bow_outpath = '../data/bow_matrix.csv'
@@ -140,6 +149,9 @@ for doc_idx, tw_weights in enumerate(tw_weights_dicts):
         if term in texts_dict.token2id:
             term_id = texts_dict.token2id[term]
             tw_matrix[doc_idx, term_id] = weight
+
+print(f"Time to tw_matrix: {time.time()-start_time}")
+start_time = time.time()
 print("tw_matrix created")
 
 # Step 1: NMF on BoW (150 topics)
@@ -185,51 +197,77 @@ try:
 except Exception as e:
     print(e)
 
-print("working on corpus_tw")
+if not os.path.exists(X_nmf_tw_path):
+    print("working on X_nmf_tw")
+    if isinstance(tw_matrix, list):
+        num_rows = len(tw_matrix)
+        num_cols = len(tw_matrix[0]) if tw_matrix else 0  # Check for empty list
+        print(f"tw_matrix shape: ({num_rows}, {num_cols})")
+    elif isinstance(tw_matrix, np.ndarray):
+        print(f"tw_matrix shape: {tw_matrix.shape}")
+    else:
+        print(f"Type of tw_matrix: {type(tw_matrix)}")
+        
 
-corpus_tw = [
-    [(word_id, weight) for word_id, weight in enumerate(doc)]  # Replace with actual weights
-    for doc in tw_matrix  # Assuming tw_matrix is your matrix with weights
-]
+    corpus_tw = []
+    chunk_size = 10000  # Adjust chunk size based on available memory
+    for start in range(0, len(tw_matrix), chunk_size):
+        print(start)
+        chunk = tw_matrix[start:start + chunk_size]
+        corpus_tw.extend(
+            [
+                [(word_id, weight) for word_id, weight in enumerate(doc) if weight != 0]
+                for doc in chunk
+            ]
+        )
 
-print("Number of documents in corpus_tw:", len(corpus_tw))
-epsilon = 1e-10
-corpus_tw = [
-    doc if len(doc) > 0 and any(weight > 0 for _, weight in doc) else [(0, epsilon)]
-    for doc in corpus_tw
-]
-print(f"Replaced all-zero rows with a small value.")
-from gensim.models import TfidfModel
-tfidf_model = TfidfModel(corpus_tw)  # If you want TF-IDF weighting
-corpus_tw = tfidf_model[corpus_tw]  # Apply TF-IDF to the corpus
 
-texts_dict_tw = corpora.Dictionary(corpus_tw)  # Create a dictionary for TW
+    print("Number of documents in corpus_tw:", len(corpus_tw))
 
-# Step 2: Train Gensim NMF
-print("training gensim nmf")
-num_topics_no_sc = 150
-nmf_tw_150 = Nmf(
-    corpus=corpus_tw,
-    id2word=texts_dict_tw,
-    num_topics=num_topics_no_sc,
-    random_state=42,
-)
-print("nmf tw done")
-# Step 3: Get Document-Topic Matrix
-doc_topics_tw = [nmf_tw_150.get_document_topics(doc) for doc in corpus_tw]
-X_nmf_tw = np.zeros((len(corpus_tw), num_topics_no_sc))
-for doc_idx, topics in enumerate(doc_topics_tw):
-    for topic_id, prob in topics:
-        X_nmf_tw[doc_idx, topic_id] = prob
+    print(f"Time to finish corpus_tw: {time.time()-start_time}")
+    start_time = time.time()
 
-print("Document-Topic Matrix for Term-Weighted Matrix")
-print("X_nmf_tw created")
-X_nmf_tw_path = '../data/X_nmf_tw.pkl'
-with open(X_nmf_tw_path, 'wb') as f:  # 'wb' for writing in binary mode
-    pickle.dump(X_nmf_tw, f)
+    # epsilon = 1e-10
+    # corpus_tw = [
+    #     doc if len(doc) > 0 and any(weight > 0 for _, weight in doc) else [(0, epsilon)]
+    #     for doc in corpus_tw
+    # ]
+    # print(f"Replaced all-zero rows with a small value.")
+    # from gensim.models import TfidfModel
+    # tfidf_model = TfidfModel(corpus_tw)  # If you want TF-IDF weighting
+    # corpus_tw = tfidf_model[corpus_tw]  # Apply TF-IDF to the corpus
 
-print(f"X_nmf_tw (150 topics): {X_nmf_tw.shape}")
-print_sample_rows(X_nmf_tw, "X_nmf_tw (150 topics)")
+    # texts_dict_tw = corpora.Dictionary(corpus_tw)  # Create a dictionary for TW
+    # Step 2: Train Gensim NMF
+    print("training gensim nmf")
+    num_topics_no_sc = 150
+    nmf_tw_150 = Nmf(
+        corpus=corpus_tw,
+        id2word=texts_dict,
+        num_topics=num_topics_no_sc,
+        random_state=42,
+    )
+    print("nmf tw done")
+    # Step 3: Get Document-Topic Matrix
+    doc_topics_tw = [nmf_tw_150.get_document_topics(doc) for doc in corpus_tw]
+    X_nmf_tw = np.zeros((len(corpus_tw), num_topics_no_sc))
+    for doc_idx, topics in enumerate(doc_topics_tw):
+        for topic_id, prob in topics:
+            X_nmf_tw[doc_idx, topic_id] = prob
+
+    print("Document-Topic Matrix for Term-Weighted Matrix")
+    print("X_nmf_tw created")
+    with open(X_nmf_tw_path, 'wb') as f:  # 'wb' for writing in binary mode
+        pickle.dump(X_nmf_tw, f)
+
+    print(f"X_nmf_tw (150 topics): {X_nmf_tw.shape}")
+    print_sample_rows(X_nmf_tw, "X_nmf_tw (150 topics)")
+
+    print(f"Time to finish X_nmf_tw: {time.time()-start_time}")
+else:
+    print("X_nmf_tw already exists. Continuing")
+
+start_time = time.time()
 try:
     if not os.path.exists(nmf_tw_dataset_full_path):
         print("working on nmf_tw_dataset_full")

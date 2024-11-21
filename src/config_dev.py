@@ -12,6 +12,8 @@ DATASET_SELECTION = 'bd4h' #credit using credit dataset for NN weight optimizing
 # 'gps'
 # 'phishing'
 BD4H_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
+NMF_BOW_DATA_PATH = '../data/nmf_bow_dataset.pkl'
+NMF_TW_DATA_PATH = '../data/nmf_tw_dataset.pkl'
 
 CREDIT_DATA_PATH = '../../data/credit+approval/crx.data'
 SP500_DATA_PATH = '../../data/sp500_dataset_Oct27'
