@@ -212,6 +212,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
     running_best_metrics_of_Xy_srx_space = []
     running_best_y_preds = None
     outer_ro_running_best_metric = 0
+    running_best_result_dict = {}
     #nested loops, outer loop iterates different params, inner loop iterates for kf CV
 
     # Set best metric and model placeholders for return
@@ -280,29 +281,25 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
                 running_best_metrics_of_Xy_srx_space = current_metrics_of_Xy
                 running_best_y_preds = y_preds
                 running_best_overall_cv_losses = cv_losses
+                avg_accuracy, std_accuracy, avg_mcc, avg_f1, avg_roc_auc, avg_pr_auc = get_metrics_of_hyperparm_set(y_preds)
             
-            #Optimization round save
-            avg_accuracy, std_accuracy, avg_mcc, avg_f1, avg_roc_auc, avg_pr_auc = get_metrics_of_hyperparm_set(y_preds)
-            result_dict = {
-                'model_name': model_name,
-                'avg_accuracy': avg_accuracy,
-                'std_accuracy': std_accuracy,  # Save the standard deviation for accuracy
-                'avg_mcc': avg_mcc,
-                'avg_f1': avg_f1,
-                'avg_roc_auc': avg_roc_auc,
-                'avg_pr_auc': avg_pr_auc,
-                'max_epoch': NN_MAX_EPOCH,
-                'current_params': current_params,
-                'current_metrics_of_Xy': current_metrics_of_Xy,
-                'y_preds': y_preds,
-                'cv_losses': cv_losses,
-                
-            }
-
-            # Save the dictionary to .pkl file
+                running_best_result_dict = {
+                    'model_name': model_name,
+                    'avg_accuracy': avg_accuracy,
+                    'std_accuracy': std_accuracy,  # Save the standard deviation for accuracy
+                    'avg_mcc': avg_mcc,
+                    'avg_f1': avg_f1,
+                    'avg_roc_auc': avg_roc_auc,
+                    'avg_pr_auc': avg_pr_auc,
+                    'max_epoch': NN_MAX_EPOCH,
+                    'current_params': current_params,
+                    'current_metrics_of_Xy': current_metrics_of_Xy,
+                    'y_preds': y_preds,
+                    'cv_losses': cv_losses,
+                    
+                }
             
-            with open(pkl_filename, 'wb') as f:
-                pickle.dump(result_dict, f)
+           
             print(f"Saved results to {pkl_filename}")
 
             with open(stats_filename, 'w') as f:
@@ -324,7 +321,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
         final_best_method = type_tag
         final_best_overall_cv_losses = running_best_overall_cv_losses
             
-    return final_best_metric, final_best_model, final_best_method, running_best_metrics_of_Xy_srx_space, final_best_overall_cv_losses, running_best_y_preds
+    return final_best_metric, final_best_model, final_best_method, running_best_metrics_of_Xy_srx_space, final_best_overall_cv_losses, running_best_y_preds, running_best_result_dict
 
 def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
     if not os.path.exists(nn_pkl_path) or not os.path.exists(cv_losses_outpath):
@@ -357,7 +354,7 @@ def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
         ###################################
         for model_name in FARSIGHT_MODELS:
             best_overall_metric, best_overall_model, best_overall_method, running_metrics_Xy_srx_space, \
-                best_overall_cv_losses,running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
+                best_overall_cv_losses,running_best_y_preds,running_best_result_dict = run_model_tuning_RO_for_Xy_srx_space(
                     X_features, 
                     y_labels, 
                     do_cv=False, 
@@ -370,12 +367,14 @@ def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
                     model_name = model_name,
                 )
             nn_results[model_name] = {'mc_results': running_metrics_Xy_srx_space}
-            with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_farsight_{model_name}.pkl', 'wb') as f:
+            with open(f'{NN_PKL_OUTDIR}/farsight_best_{model_name}_hyperparam_set.pkl', 'wb') as f:
+                pickle.dump(running_best_result_dict,f)
+            with open(f'{Y_PRED_PKL_OUTDIR}/y_pred_best_of_{model_name}.pkl', 'wb') as f:
                 pickle.dump(running_best_y_preds,f)
-            print(f"Saved results to {Y_PRED_PKL_OUTDIR}/y_pred_farsight_{model_name}.pkl")
-        with open(f'{NN_PKL_OUTDIR}/farsight_{model_name}_nn_results.pkl', 'wb') as f:
+            print(f"Saved results to {Y_PRED_PKL_OUTDIR}/y_pred_best_of_{model_name}.pkl")
+        with open(f'{NN_PKL_OUTDIR}/farsight_best_of_{model_name}_nn_results.pkl', 'wb') as f:
             pickle.dump(nn_results,f)
-        print(f"Saved results to {NN_PKL_OUTDIR}/farsight_{model_name}_nn_results.pkl")
+        print(f"Saved results to {NN_PKL_OUTDIR}/farsight_best_of_{model_name}_nn_results.pkl")
         
     pass
 

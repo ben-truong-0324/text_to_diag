@@ -16,11 +16,7 @@ EXP_DEBUG = 0
 DATA_DEBUG = 0
 
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-<<<<<<< Updated upstream
-DRAFT_VER_A3 = 1
-=======
-DRAFT_VER_A3 = 4
->>>>>>> Stashed changes
+DRAFT_VER_A3 = 2
 
 RANDOM_OPTIMIZATION_ITERATION_COUNT = 1
 NN_MAX_EPOCH = 100
@@ -28,15 +24,9 @@ NN_MAX_EPOCH = 100
 
 
 FARSIGHT_PARAM_GRID = {
-<<<<<<< Updated upstream
-    'lr': [0.01, 0.005, 0.0005,.0001],
-    'batch_size': [ 32,64],
-    'dropout_rate': [0.05, 0.1],
-=======
     'lr': [0.005, 0.0005],
     'batch_size': [ 16,32],
     'dropout_rate': [0, 0.05],
->>>>>>> Stashed changes
     'hidden_layers': [[64]],
     # 'activation_function': just use relu
 }
