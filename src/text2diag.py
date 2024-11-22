@@ -271,9 +271,6 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
             # Update running best if the new metric is better
             if avg_metric > inner_cv_running_best_metric:
                 inner_cv_running_best_metric = avg_metric
-                rhc_no_improvement_count = 0
-            else:
-                rhc_no_improvement_count += 1
 
             if inner_cv_running_best_metric > outer_ro_running_best_metric:
                 outer_ro_running_best_metric = inner_cv_running_best_metric
@@ -299,19 +296,16 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
                     
                 }
             
-           
-            print(f"Saved results to {pkl_filename}")
-
-            with open(stats_filename, 'w') as f:
-                f.write(f"Model: {model_name}\n")
-                f.write(f"Average Accuracy: {avg_accuracy:.4f} ± {std_accuracy:.4f}\n")
-                f.write(f"Average MCC: {avg_mcc:.4f}\n")
-                f.write(f"Average F1 Score: {avg_f1:.4f}\n")
-                f.write(f"Average AUC-ROC: {avg_roc_auc:.4f}\n")
-                f.write(f"Average AUC-PR: {avg_pr_auc:.4f}\n")
-                f.write(f"max_epoch: {NN_MAX_EPOCH}\n")
-                f.write(f"Hyperparameters: {current_params}\n")
-            print(f"Saved stats to {stats_filename}")
+                with open(stats_filename, 'w') as f:
+                    f.write(f"Model: {model_name}\n")
+                    f.write(f"Average Accuracy: {avg_accuracy:.4f} ± {std_accuracy:.4f}\n")
+                    f.write(f"Average MCC: {avg_mcc:.4f}\n")
+                    f.write(f"Average F1 Score: {avg_f1:.4f}\n")
+                    f.write(f"Average AUC-ROC: {avg_roc_auc:.4f}\n")
+                    f.write(f"Average AUC-PR: {avg_pr_auc:.4f}\n")
+                    f.write(f"max_epoch: {NN_MAX_EPOCH}\n")
+                    f.write(f"Hyperparameters: {current_params}\n")
+                print(f"Saved stats to {stats_filename}")
         
 
     # Check against overall best and update if necessary
