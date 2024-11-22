@@ -19,16 +19,16 @@ EXP_DEBUG = 0
 DATA_DEBUG = 0
 
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-DRAFT_VER_A3 = 6
+DRAFT_VER_A3 = 7
 
 RANDOM_OPTIMIZATION_ITERATION_COUNT = 1
-NN_MAX_EPOCH = 40
+NN_MAX_EPOCH = 100
 
 # _lr___0_0005___batch_size___16___dropout_rate___0_1___hidden_layers____64_
 FARSIGHT_PARAM_GRID = {
-    'lr': [0.0005,.0001],
-    'batch_size': [ 16,32],
-    'dropout_rate': [  .1,.05],
+    'lr': [.0001],
+    'batch_size': [ 16],
+    'dropout_rate': [  .05],
     'hidden_layers': [ [64]],
     # 'activation_function': just use relu
 }
