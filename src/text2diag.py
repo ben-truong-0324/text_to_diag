@@ -232,6 +232,7 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
         params_str = re.sub(r'[^\w\-_]', '_', str(current_params))  # Replace invalid characters with '_'
         pkl_filename = f"{NN_PKL_OUTDIR}/farsight_results_{EVAL_FUNC_METRIC}_{model_name}_{params_str}.pkl"
         stats_filename = f"{TXT_OUTDIR}/farsight_results_{EVAL_FUNC_METRIC}_{model_name}_{params_str}.txt"
+<<<<<<< HEAD
         if not os.path.exists(pkl_filename) or not os.path.exists(stats_filename):
 
             current_metrics_of_Xy = []
@@ -320,6 +321,19 @@ def run_model_tuning_RO_for_Xy_srx_space(X, y, do_cv, random_opt_algo, best_over
                 f.write(f"CV Losses: {cv_losses}\n")
                 
             print(f"Saved stats to {stats_filename}")
+=======
+        with open(stats_filename, 'w') as f:
+            f.write(f"Model: {model_name}\n")
+            f.write(f"Average Accuracy: {avg_accuracy:.4f} ± {std_accuracy:.4f}\n")
+            f.write(f"Average MCC: {avg_mcc:.4f}\n")
+            f.write(f"Average F1 Score: {avg_f1:.4f}\n")
+            f.write(f"Average AUC-ROC: {avg_roc_auc:.4f}\n")
+            f.write(f"Average AUC-PR: {avg_pr_auc:.4f}\n")
+            f.write(f"max_epoch: {NN_MAX_EPOCH}\n")
+            f.write(f"Hyperparameters: {current_params}\n")
+           
+        print(f"Saved stats to {stats_filename}")
+>>>>>>> 8d26fd7 (running grid srx more)
         
 
     # Check against overall best and update if necessary
@@ -365,7 +379,7 @@ def get_eval_with_nn(X,y,nn_pkl_path,cv_losses_outpath):
                 best_overall_cv_losses,running_best_y_preds = run_model_tuning_RO_for_Xy_srx_space(
                     X_features, 
                     y_labels, 
-                    do_cv=True, 
+                    do_cv=False, 
                     random_opt_algo="default", 
                     best_overall_metric=best_overall_metric,  # Keyword argument
                     best_overall_method=best_overall_method,    # Keyword argument
