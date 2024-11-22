@@ -325,6 +325,12 @@ def get_data(dataset, do_scaling, do_log_transform):
         # print(df_X.head())
         Y_df = np.stack(df_X['DIAG_GROUPS_OF_FIRST_HADM_ONLY'].apply(np.array).apply(y_to_onehot).to_numpy())
         X_df = df_X.loc[:, 0:149]
+    elif 'NMF_TW' in dataset:
+        with open(NMF_TW_DATA_PATH, 'rb') as f:
+            df_X = pickle.load(f)
+        # print(df_X.head())
+        Y_df = np.stack(df_X['DIAG_GROUPS_OF_FIRST_HADM_ONLY'].apply(np.array).apply(y_to_onehot).to_numpy())
+        X_df = df_X.loc[:, 0:149]
     elif 'sp500' in dataset:
         if not os.path.exists(SP500_PROCESSED_DATA_PATH): 
             dataset = pd.read_csv(SP500_DATA_PATH, header=None)

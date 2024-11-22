@@ -6,7 +6,7 @@ from sklearn.model_selection import ParameterSampler
 
 GT_ID = 68420 #randomizer seed
 
-DATASET_SELECTION = 'doc2vec' #credit using credit dataset for NN weight optimizing via RO
+DATASET_SELECTION = 'NMF_BOW' #credit using credit dataset for NN weight optimizing via RO
 # NMF_BOW
 DOC2VEC_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
 NMF_BOW_DATA_PATH = '../data/nmf_bow_dataset.pkl'
@@ -16,7 +16,7 @@ EXP_DEBUG = 0
 DATA_DEBUG = 0
 
 OUTPUT_DIR_A3 = f'../outputs/{DATASET_SELECTION}'
-DRAFT_VER_A3 = 2
+DRAFT_VER_A3 = 3
 
 RANDOM_OPTIMIZATION_ITERATION_COUNT = 1
 NN_MAX_EPOCH = 60
