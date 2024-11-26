@@ -128,13 +128,57 @@ fcrnn['processed_text'] = fcrnn['processed_text'].apply(eval)
 
 X_nmf_bow_path = '../data/X_nmf_bow.pkl'
 X_nmf_tw_path = '../data/X_nmf_tw.pkl'
-X_nmf_bow_sc_path = '../data/X_nmf_bow_sc.pkl'
-X_nmf_tw_sc_path = '../data/X_nmf_tw_sc.pkl'
+X_nmf_bow_sc_path = '../data/X_nmf_bow_sc1.pkl'
+X_nmf_tw_sc_path = '../data/X_nmf_tw_sc1.pkl'
 
+
+NMF_BOW_SC_DATA_PATH = '../data/nmf_bow_w_sc_topics.pkl'
+NMF_TW_SC_DATA_PATH = '../data/nmf_tw_w_sc_topics.pkl'
 nmf_bow_dataset_full_path = '../data/nmf_bow_dataset.pkl'
 nmf_tw_dataset_full_path = '../data/nmf_tw_dataset.pkl'
 bow_outpath = '../data/bow_matrix.csv'
 tw_outpath = '../data/tw_matrix.csv'
+
+try:
+    if not os.path.exists(X_nmf_bow_sc_path):
+        print("working on X_nmf_bow_sc_path")
+        with open(NMF_BOW_SC_DATA_PATH, 'rb') as f:
+            X_nmf_bow_sc = pickle.load(f)
+        X_nmf_bow_sc = pd.DataFrame(X_nmf_bow_sc)
+        if isinstance(X_nmf_bow_sc, pd.DataFrame):
+            X_nmf_bow_sc['SUBJECT_ID'] = fcrnn['SUBJECT_ID']
+            # Merge with multi_group_label_df on SUBJECT_ID
+            X_nmf_bow_sc = pd.merge(X_nmf_bow_sc, multi_group_label_df, on='SUBJECT_ID', how='inner')
+            # Check the result of the merge
+            print(X_nmf_bow_sc.shape)
+            print(X_nmf_bow_sc.head())
+            with open(X_nmf_bow_sc_path, 'wb') as f:  # 'wb' for writing in binary mode
+                pickle.dump(X_nmf_bow_sc, f)
+        else:
+            print("X_nmf_bow_sc unable to convert to DataFrame")
+except Exception as e:
+    print(e)
+
+try:
+    if not os.path.exists(X_nmf_tw_sc_path):
+        print("working on X_nmf_tw_sc_path")
+        with open(NMF_TW_SC_DATA_PATH, 'rb') as f:
+            X_nmf_tw_sc = pickle.load(f)
+        X_nmf_tw_sc = pd.DataFrame(X_nmf_tw_sc)
+        if isinstance(X_nmf_tw_sc, pd.DataFrame):
+            X_nmf_tw_sc['SUBJECT_ID'] = fcrnn['SUBJECT_ID']
+            # Merge with multi_group_label_df on SUBJECT_ID
+            X_nmf_tw_sc = pd.merge(X_nmf_tw_sc, multi_group_label_df, on='SUBJECT_ID', how='inner')
+            # Check the result of the merge
+            print(X_nmf_tw_sc.shape)
+            print(X_nmf_tw_sc.head())
+            with open(X_nmf_tw_sc_path, 'wb') as f:  # 'wb' for writing in binary mode
+                pickle.dump(X_nmf_tw_sc, f)
+        else:
+            print("X_nmf_tw_sc unable to convert to DataFrame")
+except Exception as e:
+    print(e)
+print("all done with the SCs")
 
 ############### create bow
 texts_dict = Dictionary(fcrnn['processed_text'])

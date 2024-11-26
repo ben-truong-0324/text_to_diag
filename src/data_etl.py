@@ -319,18 +319,34 @@ def get_data(dataset, do_scaling, do_log_transform):
         df_X['processed_text'] = df_X['processed_text'].apply(csv_load_helper)
         X_df = np.stack(df_X['processed_text'].to_numpy())
         Y_df = np.stack(df_X['DIAG_GROUPS_OF_FIRST_HADM_ONLY'].apply(np.array).apply(y_to_onehot).to_numpy())
-    elif 'NMF_BOW' in dataset:
+    elif 'NMF_BOW' == dataset:
         with open(NMF_BOW_DATA_PATH, 'rb') as f:
             df_X = pickle.load(f)
         # print(df_X.head())
         Y_df = np.stack(df_X['DIAG_GROUPS_OF_FIRST_HADM_ONLY'].apply(np.array).apply(y_to_onehot).to_numpy())
         X_df = df_X.loc[:, 0:149]
-    elif 'NMF_TW' in dataset:
+    elif 'NMF_TW' == dataset:
         with open(NMF_TW_DATA_PATH, 'rb') as f:
             df_X = pickle.load(f)
         # print(df_X.head())
         Y_df = np.stack(df_X['DIAG_GROUPS_OF_FIRST_HADM_ONLY'].apply(np.array).apply(y_to_onehot).to_numpy())
         X_df = df_X.loc[:, 0:149]
+    elif 'NMF_BOW_SC' in dataset:
+        print("loading new")
+        with open(NMF_BOW_SC_DATA_PATH, 'rb') as f:
+            df_X = pickle.load(f)
+        print(df_X[:10])
+        print(df_X.shape)
+        Y_df = np.stack(df_X['DIAG_GROUPS_OF_FIRST_HADM_ONLY'].apply(np.array).apply(y_to_onehot).to_numpy())
+        X_df = df_X.loc[:, 0:99]
+    elif 'NMF_TW_SC' in dataset:
+        print("loading new")
+        with open(NMF_TW_SC_DATA_PATH, 'rb') as f:
+            df_X = pickle.load(f)
+        print(df_X[:10])
+        print(df_X.shape)
+        Y_df = np.stack(df_X['DIAG_GROUPS_OF_FIRST_HADM_ONLY'].apply(np.array).apply(y_to_onehot).to_numpy())
+        X_df = df_X.loc[:, 0:99]
     elif 'sp500' in dataset:
         if not os.path.exists(SP500_PROCESSED_DATA_PATH): 
             dataset = pd.read_csv(SP500_DATA_PATH, header=None)

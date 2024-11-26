@@ -6,12 +6,15 @@ from sklearn.model_selection import ParameterSampler
 
 GT_ID = 68420 #randomizer seed
 
-DATASET_SELECTION = 'NMF_TW' #credit using credit dataset for NN weight optimizing via RO
-# NMF_BOW
+DATASET_SELECTION = 'NMF_TW_SC' #credit using credit dataset for NN weight optimizing via RO
+# NMF_BOW NMF_BOW_SC
 DOC2VEC_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
 NMF_BOW_DATA_PATH = '../data/nmf_bow_dataset.pkl'
 NMF_TW_DATA_PATH = '../data/nmf_tw_dataset.pkl'
-
+# NMF_BOW_SC_DATA_PATH = '../data/nmf_bow_w_sc_topics.pkl'
+# NMF_TW_SC_DATA_PATH = '../data/nmf_tw_w_sc_topics.pkl'
+NMF_BOW_SC_DATA_PATH = '../data/X_nmf_bow_sc1.pkl'
+NMF_TW_SC_DATA_PATH = '../data/X_nmf_tw_sc1.pkl'
 EXP_DEBUG = 0
 DATA_DEBUG = 0
 
@@ -97,7 +100,7 @@ MONTE_CARLO_NN_ITER = 5
 TRAIN_SIZE = .8
 TEST_SIZE = .2
 HIDDEN_NODES = [16,8]
-NN_PATIENCE = 3
+NN_PATIENCE = 2
 
 #DIM REDUCTION
 DIMENSION_REDUCE_METHODS = ["PCA", "ICA",
