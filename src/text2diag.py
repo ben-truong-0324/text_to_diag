@@ -568,7 +568,91 @@ def y_pred_check():
 
         data_plots.plot_merged_y_pred_data(merged_data)
 
+def farsight_res_vis():
+    datasets = ['doc2vec', 'NMF_BOW', 'NMF_TW', 'NMF_BOW_SC', 'NMF_TW_SC']
+    
+    # Initialize the results dictionary to store metrics for each dataset
+    results = {}
+    output_file_pkl = '../outputs/metric_table1.pkl'
+    output_file_txt = '../outputs/metric_table1.txt'
+    if not os.path.exists(output_file_pkl):
+        # Iterate over datasets
+        for dataset in datasets:
+            y_pred_files = [f for f in os.listdir(f'../outputs/{dataset}/fin/pkl_ypred') if f.startswith('y_pred_best_of') and f.endswith('.pkl')]
+            param_files = [f for f in os.listdir(f'../outputs/{dataset}/fin/pkl_nn') if f.startswith('farsight_best_') and f.endswith('.pkl')]
+            
+            dataset_metrics = []  # Store metrics for each model in the dataset
+            
+            for y_pred_file in y_pred_files:
+                y_pred_path = os.path.join(f'../outputs/{dataset}/fin/pkl_ypred', y_pred_file)
+                print(f"Processing {y_pred_path}")
+                
+                # Load y_pred
+                with open(y_pred_path, 'rb') as f:
+                    y_preds = pickle.load(f)
+                
+                print(f"Number of predictions sets: {len(y_preds)}")
+                
+                # Initialize variables to accumulate metrics across all iterations
+                all_label_accuracy = np.zeros(19)
+                all_auc_roc = []
+                all_f1 = []
+                all_mcc = []
+                all_auprc = []
+                overall_accuracies = []
+
+                # Loop through all prediction sets in y_preds
+                for y_pred, y_actual in y_preds:
+                    # Calculate metrics for the current set
+                    label_accuracy, auc_roc, f1, mcc, auprc, overall_accuracy = calculate_fin_metrics(y_pred, y_actual)
+                    
+                    # Aggregate metrics for each label and overall accuracy
+                    all_label_accuracy += np.array(label_accuracy)
+                    all_auc_roc.append(auc_roc)
+                    all_f1.append(f1)
+                    all_mcc.append(mcc)
+                    all_auprc.append(auprc)
+                    overall_accuracies.append(overall_accuracy)
+                
+                # Average the metrics across all iterations in y_preds
+                avg_label_accuracy = all_label_accuracy / len(y_preds)
+                avg_auc_roc = np.nanmean(all_auc_roc, axis=0)  # Handle NaN values in AUC
+                avg_f1 = np.mean(all_f1, axis=0)
+                avg_mcc = np.mean(all_mcc, axis=0)
+                avg_auprc = np.mean(all_auprc, axis=0)
+                avg_overall_accuracy = np.mean(overall_accuracies)
+                
+                # Save metrics for this model
+                model_name = y_pred_file.split('_')[-1].split('.')[0]  # 'bi-LSTM' from 'y_pred_best_of_bi-LSTM.pkl'
+                model_metrics = {
+                    "model": model_name,
+                    "label_accuracy": avg_label_accuracy,
+                    "auc_roc": avg_auc_roc,
+                    "f1": avg_f1,
+                    "mcc": avg_mcc,
+                    "auprc": avg_auprc,
+                    "overall_accuracy": avg_overall_accuracy
+                }
+                
+                dataset_metrics.append(model_metrics)
+            
+            # Store dataset metrics
+            results[dataset] = dataset_metrics
+        # Example usage
+        with open(output_file_pkl, "wb") as f:
+            pickle.dump(results, f)
         
+    else:
+        with open(output_file_pkl, 'rb') as f:
+            results = pickle.load(f)
+    # data_plots.plot_mismatches(results)
+    print_and_save_metrics(results, output_file_txt)
+    for metric_name in ['label_accuracy', 'auc_roc', 'f1', 'mcc', 'auprc']:
+        data_plots.plot_farsight_metric_with_std(results, metric_name)
+    data_plots.plot_farsight_metric_with_std_agg(results)
+    data_plots.plot_accuracy_grid_from_files(datasets)
+
+          
 
 def y_pred_farsight_check():
     dataset = 'doc2vec'
@@ -612,8 +696,9 @@ def check_etl():
 def main(): 
     np.random.seed(GT_ID)
     X,y,X_train, X_test, y_train, y_test  = check_etl()
-    implement_farsight(X, y)
-    y_pred_farsight_check()
+    # implement_farsight(X, y)
+    # y_pred_farsight_check()
+    farsight_res_vis()
 
 
 

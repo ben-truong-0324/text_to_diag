@@ -1261,3 +1261,302 @@ def plot_merged_y_pred_data(merged_data):
     plt.savefig(f"{Y_PRED_OUTDIR}/aggregated_y_pred_{DATASET_SELECTION}_{EVAL_FUNC_METRIC}.png")
     plt.savefig(f"{AGGREGATED_OUTDIR}/y_pred_{DATASET_SELECTION}_{EVAL_FUNC_METRIC}.png")
     plt.close()
+
+
+
+def plot_mismatches(results):
+    for dataset, models_metrics in results.items():
+        # Create a subplot for each model
+        n_models = len(models_metrics)
+        fig, axs = plt.subplots(n_models, 1, figsize=(10, 5 * n_models))
+        
+        for i, model_metrics in enumerate(models_metrics):
+            label_accuracy = model_metrics["label_accuracy"]
+            model_name = model_metrics["model"]
+            
+            # Create a heatmap of label accuracy for the model
+            axs[i].imshow([label_accuracy], aspect='auto', cmap='RdYlGn_r', interpolation='nearest')
+            axs[i].set_title(f"Model: {model_name}")
+            axs[i].set_xticks(np.arange(19))
+            axs[i].set_xticklabels([f"Label {i+1}" for i in range(19)])
+            axs[i].set_yticks([])
+            axs[i].set_xlabel("Labels")
+            axs[i].set_ylabel("Accuracy")
+        
+        # Save the figure
+        plt.tight_layout()
+        plt.savefig(f"../outputs/{dataset}_mismatches.png")
+        plt.show()
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+def plot_farsight_metric_with_std(results, metric_name):
+    """
+    Plot the specified metric for each model with standard deviation for each dataset.
+    
+    :param results: A dictionary containing dataset metrics with model names and their respective metric values and std deviations.
+    :param metric_name: The metric to plot, e.g., 'accuracy', 'f1', etc.
+    """
+    # Define the number of datasets and the layout of the subplots
+    num_datasets = len(results)
+    
+    # Calculate number of rows and columns for subplots (2 columns)
+    num_columns = 2
+    num_rows = (num_datasets + 1) // num_columns  # Round up for uneven numbers
+    
+    # Create subplots with 2 columns
+    fig, axes = plt.subplots(num_rows, num_columns, figsize=(12, 4 * num_rows), sharex=True)
+
+    # If there's only one dataset, axes might be a single axis, not a list
+    if num_datasets == 1:
+        axes = [axes]
+    elif num_datasets == 2:
+        axes = axes.flatten()
+    else:
+        axes = axes.flatten()  # Flatten for easy indexing if multiple rows
+
+    # Loop through each dataset and plot the specified metric and std
+    for i, (dataset, dataset_metrics) in enumerate(results.items()):
+        # Extract model names, metric values, and std deviations
+        model_names = [metrics["model"] for metrics in dataset_metrics]
+        metric_values = [np.mean(metrics[metric_name]) for metrics in dataset_metrics]
+        # overall_accuracy = np.mean(label_accuracy)
+        std_devs = [np.std([metrics[metric_name] for metrics in dataset_metrics]) for _ in dataset_metrics]
+
+        # Convert the model names to indices for plotting
+        x = np.arange(len(model_names))
+        
+        # Plot the average metric value as a line
+        axes[i].plot(x, metric_values, marker='o', linestyle='-', color='b', label=f'{metric_name.capitalize()} (Mean)')
+      
+        axes[i].fill_between(x,  # Fill across the entire x-axis range (model positions)
+                             np.array(metric_values) - np.array(std_devs),  # Lower bound
+                             np.array(metric_values) + np.array(std_devs),  # Upper bound
+                             color='skyblue', alpha=0.3)
+
+        # Set axis limits and labels
+        axes[i].set_ylim(0.5, 1.0)  # Can adjust this based on the range of your metrics
+        axes[i].set_title(f'{dataset}')
+        axes[i].set_xlabel('Model')
+        axes[i].set_ylabel(f'{metric_name.capitalize()}')
+
+        # Set x-ticks to be model names
+        axes[i].set_xticks(x)
+        axes[i].set_xticklabels(model_names, rotation=45)
+
+        # Add a legend
+        axes[i].legend()
+
+
+    # Adjust layout to prevent label overlap and ensure visibility
+    plt.tight_layout(pad=4.0)  # Increase padding between subplots
+
+    # Manually adjust the bottom margin if necessary
+    plt.subplots_adjust(bottom=0.2)
+
+    # Show the plot
+    plt.tight_layout()
+    plt.savefig(f"../outputs/{metric_name}_fin.png")
+    plt.close()
+def plot_farsight_metric_with_std_agg(results):
+    """
+    Plot aggregated metrics for each model across all datasets in one graph per metric.
+    
+    :param results: A dictionary containing dataset metrics with model names and their respective metric values and std deviations.
+    """
+    # Extract the list of metrics from the first dataset
+    metrics_list = list(next(iter(results.values()))[0].keys())
+    metrics_list = [metric for metric in metrics_list if metric not in ['model']]  # Exclude 'model' key
+    
+    # Define the number of metrics and the layout of the subplots
+    num_metrics = len(metrics_list)
+    
+    # Calculate the number of rows and columns for subplots (2 columns)
+    num_columns = 2
+    num_rows = (num_metrics + 1) // num_columns  # Round up for uneven numbers
+    
+    # Create subplots with 2 columns
+    fig, axes = plt.subplots(num_rows, num_columns, figsize=(12, 4 * num_rows), sharex=True, sharey=False)
+
+    # If there's only one metric, axes might be a single axis, not a list
+    if num_metrics == 1:
+        axes = [axes]
+    elif num_metrics == 2:
+        axes = axes.flatten()
+    else:
+        axes = axes.flatten()  # Flatten for easy indexing if multiple rows
+    
+    # Loop through each metric
+    for metric_idx, metric_name in enumerate(metrics_list):
+        ax = axes[metric_idx]
+        
+        # Data for the current metric
+        for dataset_name, dataset_metrics in results.items():
+            # Extract model names, metric values, and std deviations
+            model_names = [metrics["model"] for metrics in dataset_metrics]
+            metric_values = [np.mean(metrics[metric_name]) for metrics in dataset_metrics]
+            std_devs = [np.std([metrics[metric_name] for metrics in dataset_metrics]) for _ in dataset_metrics]
+
+            # Convert the model names to indices for plotting
+            x = np.arange(len(model_names))
+
+            # Plot the metric values for this dataset
+            ax.plot(x, metric_values, marker='o', linestyle='-', label=f'{dataset_name}')
+            ax.fill_between(x,
+                            np.array(metric_values) - np.array(std_devs),
+                            np.array(metric_values) + np.array(std_devs),
+                            alpha=0.2)
+
+        # Set axis limits and labels
+        ax.set_title(f'{metric_name.capitalize()} Across Datasets')
+        ax.set_xlabel('Model')
+        ax.set_ylim(0.0, 1.0) 
+        ax.set_ylabel(f'{metric_name.capitalize()}')
+        ax.set_xticks(x)
+        ax.set_xticklabels(model_names, rotation=45)
+        ax.legend(loc="lower left")
+
+    # Adjust layout to prevent overlap
+    plt.tight_layout(pad=4.0)
+    plt.subplots_adjust(bottom=0.2)  # Adjust bottom margin if needed
+    
+    # Save and close the plot
+    plt.savefig(f"../outputs/aggregated_metrics.png")
+    plt.close()
+
+
+def plot_accuracy_grid_from_files(datasets, output_dir="../outputs"):
+    """
+    Generate an accuracy grid for each dataset and model. The grid will be plotted in one graph,
+    with each row representing the accuracy for 19 labels.
+    
+    :param datasets: List of dataset names to process.
+    :param output_dir: Directory to save the generated accuracy grids.
+    """
+    for dataset in datasets:
+        # Locate prediction files
+        y_pred_dir = f'../outputs/{dataset}/fin/pkl_ypred'
+
+        y_pred_files = [
+            f for f in os.listdir(y_pred_dir)
+            if f.startswith('y_pred_best_of') and f.endswith('.pkl')
+        ]
+
+        for y_pred_file in y_pred_files:
+            # Extract model name from the file name
+            model_name = y_pred_file.split('_best_of_')[-1].replace('.pkl', '')
+
+            y_pred_path = os.path.join(y_pred_dir, y_pred_file)
+            print(f"Processing {y_pred_path} for {dataset} - Model: {model_name}")
+
+            # Load y_pred and y_actual from the file
+            with open(y_pred_path, 'rb') as f:
+                y_preds = pickle.load(f)  # List of (y_pred, y_actual) tuples
+
+            for idx, (y_pred, y_actual) in enumerate(y_preds):
+                if idx < 3:
+                    # Validate data dimensions
+                    y_pred = np.array(y_pred)
+                    y_actual = np.array(y_actual)
+
+                    if y_pred.shape != y_actual.shape:
+                        print(f"Shape mismatch for {dataset} - Model: {model_name}, Prediction Set {idx}: Skipping.")
+                        continue
+
+                    # All rows will be included (no limit)
+                    matches = (y_pred == y_actual)
+
+                    # Reshape matches into a grid of 19 columns (for 19 labels)
+                    matches_reshaped = matches.reshape(-1, 19)
+
+                    # Create the plot for the entire dataset/model (single heatmap)
+                    fig, ax = plt.subplots(figsize=(8, 16))
+
+                    # Plot the accuracy grid (green for match, red for mismatch)
+                    heatmap = ax.imshow(matches_reshaped, cmap="RdYlGn", aspect="auto", interpolation="nearest")
+
+                    # Add title, labels, and ticks for better clarity
+                    ax.set_title(f"Accuracy Grid - {dataset} - {model_name} (Set {idx})", fontsize=14)
+                    ax.set_xlabel("Labels", fontsize=12)
+                    ax.set_ylabel("Samples", fontsize=12)
+                    ax.set_xticks(np.arange(0, 19, step=3))  # Tick every 3 labels for readability
+                    ax.set_xticklabels([f"L{i+1}" for i in range(0, 19, 3)], rotation=45, fontsize=10)
+                    ax.set_yticks(np.arange(0, matches_reshaped.shape[0], step=1000))  # Label every 1000 rows for clarity
+                    ax.set_yticklabels([str(i) for i in range(0, matches_reshaped.shape[0], 1000)], fontsize=10)
+
+                    # Add a colorbar to the heatmap
+                    cbar = plt.colorbar(heatmap)
+                    cbar.set_label('Accuracy (Green = Match, Red = Mismatch)', fontsize=12)
+
+                    # Adjust layout and save the figure
+                    plt.tight_layout()
+                    output_path = f"{output_dir}/{dataset}_{model_name}_Set{idx}_accuracy_grid.png"
+                    plt.savefig(output_path, dpi=300)
+                    plt.close()
+                    print(f"Saved accuracy grid to {output_path}")
+
+
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Data
+metrics = ['F1 Score', 'AUPRC', 'AUROC']
+farsight_scores = [0.76, 0.72, 0.82]
+baumel_scores = [0.56, None, None]  # Missing values represented as None
+state_of_the_art = [None, 0.6, 0.78]
+optimized_scores = [0.97, 0.95, 0.98]
+
+# Grouped bar settings
+valid_indices = [
+    i for i, (fs, bm, so, op) in enumerate(zip(farsight_scores, baumel_scores, state_of_the_art, optimized_scores))
+    if fs is not None or bm is not None or so is not None or op is not None
+]
+metrics_filtered = [metrics[i] for i in valid_indices]
+farsight_filtered = [farsight_scores[i] for i in valid_indices]
+baumel_filtered = [baumel_scores[i] for i in valid_indices]
+state_of_the_art_filtered = [state_of_the_art[i] for i in valid_indices]
+optimized_filtered = [optimized_scores[i] for i in valid_indices]
+
+x = np.arange(len(metrics_filtered))  # X positions for valid metrics
+width = 0.2  # Width of each bar
+
+# Create the plot
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# Plot bars
+bars_farsight = ax.bar(x - 1.5 * width, farsight_filtered, width, label='Farsight', color='blue', alpha=0.7)
+bars_baumel = ax.bar(x - 0.5 * width, [bm if bm is not None else 0 for bm in baumel_filtered], width, label='Baumel et al.', color='orange', alpha=0.7)
+bars_state = ax.bar(x + 0.5 * width, [so if so is not None else 0 for so in state_of_the_art_filtered], width, label='State of the Art', color='purple', alpha=0.7)
+bars_optimized = ax.bar(x + 1.5 * width, optimized_filtered, width, label='Optimized', color='green', alpha=0.7)
+
+# Add labels, title, and legend
+ax.set_title('Metric Comparison Across Models')
+ax.set_ylabel('Score')
+ax.set_xticks(x)
+ax.set_xticklabels(metrics_filtered)
+ax.set_ylim(0, 1)
+ax.legend(loc='upper left')
+
+# Add gridlines for better readability
+ax.grid(axis='y', linestyle='--', alpha=0.5)
+
+# Add numbers on top of each bar
+for bars, scores in zip([bars_farsight, bars_baumel, bars_state, bars_optimized], 
+                        [farsight_filtered, baumel_filtered, state_of_the_art_filtered, optimized_filtered]):
+    for bar, score in zip(bars, scores):
+        if score is not None:  # Only annotate if the score is not None
+            height = bar.get_height()
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,  # X-coordinate (center of the bar)
+                height + 0.01,  # Y-coordinate (slightly above the bar)
+                f'{height:.2f}',  # Format height as a string with 2 decimals
+                ha='center', va='bottom', fontsize=10  # Align text to center of bar
+            )
+
+# Adjust layout and save the plot
+plt.tight_layout()
+plt.savefig("metric_comparison_no_gaps.png", dpi=300)  # Save as a high-resolution image
+plt.show()

@@ -104,3 +104,117 @@ def get_metrics_of_hyperparm_set(y_preds):
     avg_roc_auc = np.mean(roc_auc_scores)
     avg_pr_auc = np.mean(pr_auc_scores)
     return avg_accuracy, std_accuracy, avg_mcc, avg_f1, avg_roc_auc, avg_pr_auc
+
+
+
+# Evaluation functions
+def calculate_fin_metrics(y_pred, y_actual):
+    num_samples, num_labels = y_pred.shape
+    
+    # Initialize lists to store individual metrics for each label
+    label_accuracy = []
+    auc_roc = []
+    f1 = []
+    mcc = []
+    auprc = []
+    
+    for i in range(num_labels):
+        # Calculate accuracy for each label
+        acc = (y_pred[:, i] == y_actual[:, i]).mean()  # Mean accuracy for each label
+        label_accuracy.append(acc)
+        
+        # Handle the AUC-ROC calculation only if both classes are present
+        try:
+            auc = roc_auc_score(y_actual[:, i], y_pred[:, i])
+            auc_roc.append(auc)
+        except ValueError:
+            # Skip if only one class is present in y_true
+            auc_roc.append(np.nan)
+        
+        # Calculate F1 score for each label
+        f1_score_label = f1_score(y_actual[:, i], y_pred[:, i])
+        f1.append(f1_score_label)
+        
+        # Calculate Matthews Correlation Coefficient (MCC) for each label
+        mcc_score = matthews_corrcoef(y_actual[:, i], y_pred[:, i])
+        mcc.append(mcc_score)
+        
+        # Calculate Average Precision (AU-PRC) for each label
+        auprc_score = average_precision_score(y_actual[:, i], y_pred[:, i])
+        auprc.append(auprc_score)
+    
+    # Overall accuracy for all 19 labels (mean of the per-label accuracies)
+    overall_accuracy = np.mean(label_accuracy)
+    
+    return label_accuracy, auc_roc, f1, mcc, auprc, overall_accuracy
+
+import pandas as pd
+import numpy as np
+
+def print_and_save_metrics(results, output_file):
+    """
+    Save and print the mean and standard deviation for each metric (excluding 'overall_accuracy')
+    for each dataset and model.
+
+    :param results: A dictionary containing dataset metrics with model names and their respective metric values.
+    :param output_file: Path to the file where metrics will be saved.
+    """
+    print("hello")
+    with open(output_file, 'w') as f:
+        for dataset, models_metrics in results.items():
+            f.write(f"Dataset: {dataset}\n")
+            
+            # Extracting the metrics for each model
+            metrics_to_process = ['label_accuracy', 'auc_roc', 'f1', 'mcc', 'auprc']
+            dataset_stats = {}
+            model_stats = {}
+
+            # Compute mean and std for each metric, per model
+            for model_metrics in models_metrics:
+                model_name = model_metrics["model"]
+                model_stats[model_name] = {}
+
+                for metric in metrics_to_process:
+                    metric_values = model_metrics[metric]
+                    mean_value = np.mean(metric_values)
+                    std_value = np.std(metric_values)
+                    model_stats[model_name][metric] = {"mean": mean_value, "std": std_value}
+            
+            # Now prepare the output for dataset-level statistics
+            dataset_level_stats = {}
+
+            for metric in metrics_to_process:
+                # Gather all model mean values for the metric to calculate dataset-level mean and std
+                model_mean_values = [model_stats[model][metric]["mean"] for model in model_stats]
+                model_std_values = [model_stats[model][metric]["std"] for model in model_stats]
+
+                dataset_level_stats[metric] = {
+                    "mean": np.mean(model_mean_values),
+                    "std": np.std(model_mean_values)
+                }
+
+            # Write out dataset-level stats
+            f.write("Dataset-level statistics (mean and std of each model's metrics):\n")
+            dataset_df = pd.DataFrame(dataset_level_stats).T
+            dataset_df.index.name = 'Metric'
+            f.write(dataset_df.to_string())
+            f.write("\n\n")
+
+            # Write out model-level stats (mean and std for each model and metric)
+            f.write("Model-level statistics (mean and std for each model):\n")
+            for model_name, stats in model_stats.items():
+                f.write(f"Model: {model_name}\n")
+                model_df = pd.DataFrame(stats).T
+                model_df.index.name = 'Metric'
+                f.write(model_df.to_string())
+                f.write("\n\n")
+
+            # Print the statistics to the console
+            print(f"Metrics for dataset {dataset}:")
+            print(dataset_df)
+            for model_name, stats in model_stats.items():
+                print(f"Model: {model_name}")
+                print(pd.DataFrame(stats).T)
+
+# Example usage
+# print_and_save_metrics(results, 'metrics_summary.txt')

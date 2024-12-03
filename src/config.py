@@ -18,11 +18,11 @@ def set_output_dir(outpath):
 EVAL_FUNC_METRIC = 'accuracy' #'f1' # 'accuracy' #for random srx implementation
 FARSIGHT_MODELS = [
     # 'default',
-'MPL',
-'CNN', 
+# 'MPL',
+# 'CNN', 
 'LSTM', 
 'bi-LSTM',
- 'conv-LSTM', 
+#  'conv-LSTM', 
                      #'seg-gru',
                     ]
 AGGREGATED_OUTDIR = set_output_dir(f'{OUTPUT_DIR_A3}/ver{DRAFT_VER_A3}_{EVAL_FUNC_METRIC}/agregated_graphs')

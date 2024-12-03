@@ -6,7 +6,7 @@ from sklearn.model_selection import ParameterSampler
 
 GT_ID = 68420 #randomizer seed
 
-DATASET_SELECTION = 'NMF_TW_SC' #credit using credit dataset for NN weight optimizing via RO
+DATASET_SELECTION = 'NMF_BOW_SC' #credit using credit dataset for NN weight optimizing via RO
 # NMF_BOW NMF_BOW_SC
 DOC2VEC_DATA_PATH = '../data/doc2vec_dataset_full.pkl'
 NMF_BOW_DATA_PATH = '../data/nmf_bow_dataset.pkl'
@@ -27,9 +27,9 @@ NN_MAX_EPOCH = 100
 
 
 FARSIGHT_PARAM_GRID = {
-    'lr': [0.005, 0.0005],
-    'batch_size': [ 16,32],
-    'dropout_rate': [0, 0.05],
+    'lr': [ 0.0005],
+    'batch_size': [ 16],
+    'dropout_rate': [0],
     'hidden_layers': [[64]],
     # 'activation_function': just use relu
 }
